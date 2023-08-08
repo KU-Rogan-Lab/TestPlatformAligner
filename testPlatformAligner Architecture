@@ -1,0 +1,259 @@
+The basic plan of how the test platform aligner code will work.
+
+A verb in ALL CAPS indicates that that line involves coordinating between threads
+
+One method controls both lights and sensor bias
+	Make it so that turning lights on always turns sensor bias off
+
+Very rough outline:
+	Human puts sensor in, clicks start button
+	Rough alignment
+	Fine alignment
+	Measure sensor (lights off!)
+	Log/output measurement data
+	Wait for human to put new sensor in and hit start button
+	Repeat from top until human is done
+
+NEW (POST-ORNL VISIT) ARCHITECTURE
+
+5 Threads:
+tUI - Interface
+tGK - Gatekeeper
+tIP - Image Parser
+tMC - Motor Control
+tLS - Listener
+
+tUI - Thread controlling the user interface, creates and updates the GUI and handles sending user commands to other threads
+tGK - Takes hardware control requests from other threads and executes them if allowed & safe. Also maintains "notice board" representing machine's state
+tIP - Creates internal video feed & extracts useful info from it, which it makes available to other threads. Passes frames to tUI to display a camera feed
+tMC - Pulls parsed data from tIP to calculate the required motor command, and asks tGK to execute it 
+tLS - Listens to a USB port for commands from the Oscilloscope (or other external devices) and passes them along to tGK
+
+tUI Thread:
+    Initialize variables
+    Set up communication queues
+    
+    Create & place GUI elements
+    - Manual motor controls
+    - Video feed display (debug feed tabs?)
+    - Test type selector? (radio button? dropdown menu?) (Sets offset)
+    - 'Help' button
+    - 'STOP' button
+    - 'Set home' button
+    - 'Read position' button
+    - 'Move To' button
+    - 'Re-calculate transform' button
+    - 'Re-parse QR code' button
+    - 'Calculate anchor position each frame' checkbox
+    - 'Calculate anchor position every ___ frames' field?
+    - Parsed QR code readout
+    - Terminal readout?
+    - FPS counter?
+    
+    While True:
+        Collect communications
+        
+        Handle commands (from other threads)
+        
+        Lock tIP.parsed_data
+        Make deepcopy of tIP.parsed_data (overwrite last deepcopy, if one exists)
+        Unlock tIP.parsed_data
+        
+        Mark up the main frame from self.parsed_data according to the other info in self.parsed_data
+        Display the marked-up frame
+        
+        tk.update_idletasks()
+        tk.update()
+
+tGK Thread:
+    Initialize variables
+    Set up communication queues
+    
+    Set up internal request queue
+    
+    While True:
+        Collect new hardware control requests into internal request queue in order of priority
+        
+        Decide what requests (if any) should go through
+
+        Send out these requests to hardware
+        
+tIP Thread:
+    Initialize variables
+    Set up communication queues
+    
+    Get confirmation from user via popup window that it is sensor-safe to turn the lights and laser on. Do not proceed until it is safe.
+    
+    ASK for tGK to turn the lights on
+    ASK for tGK to turn the laser on
+    
+    WAIT for tMC to perform homing move  # Little hand-wavey right now
+    
+    Autofocus camera
+    Set up video stream
+    
+    while True:
+        Collect communications
+        
+        Handle commands
+        
+        ASK tGK to control lights (on if finding anchors, off if finding laser)
+        
+        Get frame from video stream
+        
+        Find transform (if needed - either no transform found, or one has been found but tUI says we need to try again)   
+        Transform image (if transform found)
+        Find & parse QR (if needed - transform found and QR not yet found, or tUI says try again)
+        Find TL anchor coordinate (if needed - only if tUI says to do so, otherwise just assume it is at the transform target point)
+        Find laser dot coordinate (if needed - only if tUI says to do so)
+                
+        Lock self.parsed_data
+        
+        Update self.parsed_data
+        - Transform
+        - Parsed QR code
+        - TL anchor coordinate
+        - Laser dot coordinate
+        - Corresponding image(s)
+        - pixel2mm constant
+        
+        UPDATE noticeboard to reflect what data is flowing
+        
+        Unlock self.parsed_data
+        
+    
+tMC Thread:
+    Initialize variables
+    Set up communication queues
+    
+    while True:
+        Collect communications
+        
+        Handle commands
+        - Calculate motor move
+        - Update offsets
+        
+    Command: do motor control        
+        Lock tIP.parsed_data
+        Make deepcopy of tIP.parsed_data
+        Unlock tIP.parsed_data
+        
+        [Motor math]
+        
+        Clear deepcopy  # Memory saving
+        
+        
+        
+
+tLS Thread:
+    Initialize variables
+    Set up port connection
+    Set up communication queues
+    
+    while True:
+        Collect communications (if any will ever exist)
+        
+        Handle commands
+        
+        Listen to USB port
+        
+        if USB_command_found:
+            Decode command
+            Package into queue-friendly format
+            PUT command in the outqueue heading to tGK
+            
+        Sleep for X seconds if we are not expecting lots of USB traffic right now (CHECK noticeboard to find out) (this sleep prevents busywaiting)
+        
+
+
+
+
+
+OLD (PRE-ORNL VISIT) ARCHITECTURE
+
+-Program Start-
+
+ROUGH ALIGNMENT
+# 3 threads, Image Parsing (IP), Rough Alignment Motor Control (MC-R), and Gatekeeper (GK)
+# 	IP finds QR code data, emitter slit position, and sensor position, and makes that info available to MC-R, plus displaying a camera feed
+#	MC-R takes data from IP, calculates how to move the emitter arm to put the emitter slit above the sensor, and asks GK to move it there
+#	GK takes hardware control requests (e.g. lights, motors, laser) from all other threads, sees if they are safe and allowed, and executes them if so
+
+Create and start IP, MC-R, and GK 
+	IP Thread:
+		Initialize variables
+		
+		ASK GK to turn lights on to full
+				
+		WAIT for MC-R to return sensor arm to (0,0)
+		
+		Turn laser on
+		
+		Autofocus camera
+		Set up video stream
+		
+		while True:
+			Handle commands
+
+			CHECK if a thread taken away light control from IP. If not:
+				Control lights (on if finding transform, dim if finding laser)
+			
+			Get frame from video stream
+			
+			Transform image (find transform matrix first if necessary)
+			Find & store QR code data (only do this once)
+			
+			If IP has not been TOLD to stop looking for positions:
+				Find & store emitter slit position (laser dot position + offset)
+				Find & store sensor position
+			
+			Display image on screen with data visualizations
+
+	MC-R Thread:
+		Initialize variables
+		
+		Move sensor arm to (0,0)
+		TELL IP sensor arm is in place
+		
+		Idle around until IP has found transform matrix, QR data, slit position, and sensor position
+		
+		while True:
+			Handle commands
+			
+			Collect & average several rounds of position data
+		
+			Display new image window with avg. slit position & avg. sensor position marked
+			Ask human if positions are accurate, go to start of loop if not
+		
+			Calculate arm motion required to align emitter slit w/ sensor
+			Execute arm motion (wait until arm motion is complete to proceed)
+			
+			TELL IP it is not allowed to do light control
+			Turn lights off
+			Bias sensor
+			
+			Test if alignment is good enough to do gradient descent
+			Unbias sensor
+			TELL IP it can control lights again
+			If alignment is good, end loop
+		
+		TELL IP to stop looking for positions
+		Destroy MC-R thread
+
+END OF ROUGH ALIGNMENT
+
+FINE ALIGNMENT
+# Again, two threads, Image Parsing (IP) and Gradient Ascender (GA)
+#	IP continues its life from rough alignment, only job now is to provide a camera feed of the inside of the box
+#	GA measures the sensor hit rate and moves the arm to maximize the hit rate with gradient ascent
+
+Create and start the GA thread
+	GA Thread
+
+		 
+		
+		
+	
+
+	
+	
