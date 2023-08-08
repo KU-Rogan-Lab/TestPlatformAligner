@@ -5,6 +5,7 @@ import numpy as np
 import testPlatformAligner as tPA
 from threading import Event
 
+
 class Window(Frame):
 
     def __init__(self, master=None, port='/dev/ttyACM0', emulate=False):
@@ -143,7 +144,6 @@ class Window(Frame):
         
     def doAutoAlign(self):
         tPA.E_StartAutoAlign.set()
-        
         
 
 root = Tk()
