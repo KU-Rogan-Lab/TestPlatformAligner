@@ -1,7 +1,7 @@
 from threading import Thread, Lock, Event
 from queue import Queue, PriorityQueue
 from collections import deque
-from imutils.video import VideoStream, FPS, perspective
+from imutils.video import VideoStream, FPS
 from tkinter import messagebox
 import argparse
 import cv2 as cv
@@ -136,9 +136,9 @@ class ImageParser(Thread):
 
         #  Ask the user if it is safe to turn the lights and laser on
         messagebox.showwarning('Sensor Safety Warning',
-                               'When you click "OK", the program will turn on the laser and LED floodlights.\n'
+                               'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
                                'Exposure to this light may damage biased sensors. Please only proceed once it is '
-                               'safe to do so.')
+                               'safe to turn the laser and LEDs on.')
 
 
         E_SB_not_obscuring.wait()  # Comment this out to test imageParser on its own
