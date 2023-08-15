@@ -123,7 +123,7 @@ tIP Thread:
     ASK for tGK to turn the lights on
     ASK for tGK to turn the laser on
     
-    WAIT for tMC to perform homing move  # Little hand-wavey right now
+    WAIT for tMC to move source box out of the way of the camera
     
     Autofocus camera
     Set up video stream
@@ -163,6 +163,11 @@ tIP Thread:
 tMC Thread:
     Initialize variables
     - Set up communication queues
+
+    Read stored coordinates from file
+    Set current position according to stored coordinates
+    Move source box out of the way of the camera
+    TELL tIP the source box is out of the way
     
     while True:
         COLLECT communications into internal list

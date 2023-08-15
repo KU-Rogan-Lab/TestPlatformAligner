@@ -76,12 +76,10 @@ class ImageParser(Thread):
         self.frame_rate = frame_rate
         self.visualize_data = visualize_data
 
-        # todo Set up queues here
-
         # The target points for the image transform
-        # These represent the "true" dimensions of the anchors in pixels,
-        # they MUST be in (TL, TR, BR, BL) order, 
-        # and they must keep to the same aspect ratio as self.true_anchor_dimensions
+        # These represent the "true" dimensions of the anchors in pixels.
+        # They MUST be in (TL, TR, BR, BL) order,
+        # and they MUST keep to the same aspect ratio as self.true_anchor_dimensions
         self.target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
         
         # The true dimensions of the anchor points in mm
@@ -135,6 +133,14 @@ class ImageParser(Thread):
 
     def run(self):
         """Run the main behavior of the thread."""
+
+        #  Ask the user if it is safe to turn the lights and laser on
+        messagebox.showwarning('Sensor Safety Warning',
+                               'When you click "OK", the program will turn on the laser and LED floodlights.\n'
+                               'Exposure to this light may damage biased sensors. Please only proceed once it is '
+                               'safe to do so.')
+
+
         E_SB_not_obscuring.wait()  # Comment this out to test imageParser on its own
         # PLACEHOLDER: Full Light
         
@@ -148,8 +154,7 @@ class ImageParser(Thread):
 
         while vs.read() is None:
             print('camera not available... ')
-            print(vs.read())    
-
+            print(vs.read())
             time.sleep(1)
             
         print("Press 'q' to close\nPress 't' to correct perspective")
@@ -189,6 +194,7 @@ class ImageParser(Thread):
             self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
 
             # Keep reading images until we get an image that is not just black
+            # todo Possibly remove this
             if np.max(self.image) == 0:
                 continue
             
