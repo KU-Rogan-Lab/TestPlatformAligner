@@ -135,8 +135,8 @@ class Window(Frame):
         tPA.tGK = tPA.GateKeeper()
     
         # Create all the events/conditions/locks used to communicate between threads
-        tPA.E_SBNotObscuring = Event() # Event used to tell tIP the source box has been moved out of the way
-        tPA.E_iPDataFlowing = Event() # Event used to tell tMC that tIP is now producing data
+        tPA.E_SB_not_obscuring = Event() # Event used to tell tIP the source box has been moved out of the way
+        tPA.E_tIP_data_flowing = Event() # Event used to tell tMC that tIP is now producing data
         tPA.E_StartAutoAlign = Event() # OkR Demo Event, used to prompt the auto align confirmation window
         
         tPA.tIP.start()

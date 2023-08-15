@@ -113,7 +113,6 @@ tGK Thread:
         Set "Kill switch tripped" flag on noticeboard
         Create popup window telling user what just happened, and that they will need to restart the program
 
-
         
 tIP Thread:
     Initialize variables

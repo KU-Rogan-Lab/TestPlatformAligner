@@ -18,10 +18,30 @@ import utils as utl  # A local file containing various utility functions
 #  - Standardize what variables are self. vars and what are globals
 #  - Figure out if you *really* need queues for this
 #  - Update any OkR-commented lines
+#  - Turn tIP.ratio into the scale factor I want
+
+
+class CommObject:
+    # The communication object that is getting passed between threads.
+    # Right now this is kind of just a bastardized dict, but I made it a class so I can add methods if needed
+    def __init__(self, c_type, priority, content, id_num):
+        """Constructor."""
+        self.c_type = c_type
+        self.priority = priority
+        self.content = content
+        self.id_num = id_num
 
 
 class UserInterface(Thread):
     def __init__(self):
+        """Constructor."""
+        # Get the queues used for communication
+        global Q_cmd_tUI_to_tLS
+        global Q_cmd_tUI_to_tGK
+        global Q_cmd_tUI_to_tIP
+        global Q_cmd_tUI_to_tMC
+        global Q_hw_tUI_to_tGK
+
         Thread.__init__(self)
 
     def run(self):
@@ -30,6 +50,13 @@ class UserInterface(Thread):
 
 class GateKeeper(Thread):
     def __init__(self):
+        """Constructor."""
+        # Get the queues used for communication
+        global Q_hw_tUI_to_tGK
+        global Q_hw_tLS_to_tGK
+        global Q_hw_tIP_to_tGK
+        global Q_hw_tMC_to_tGK
+
         Thread.__init__(self)
 
     def run(self):
@@ -39,12 +66,18 @@ class GateKeeper(Thread):
 class ImageParser(Thread):
     def __init__(self, camera=0, img_size=(1000, 1000), frame_rate=30, visualize_data=True):
         """Constructor"""
+
+        # Get the queues used for communication
+        global Q_hw_tIP_to_tGK
+        global Q_cmd_tUI_to_tIP
         
         self.camera = camera
         self.img_size = img_size
         self.frame_rate = frame_rate
         self.visualize_data = visualize_data
-        
+
+        # todo Set up queues here
+
         # The target points for the image transform
         # These represent the "true" dimensions of the anchors in pixels,
         # they MUST be in (TL, TR, BR, BL) order, 
@@ -75,9 +108,6 @@ class ImageParser(Thread):
         self.anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchor objects (HSV format)
 
         self.camera_started = True
-
-        self.inqueue = deque(maxlen=1)
-        self.outqueue = deque(maxlen=1)
         
         self.ratio = 1
         
@@ -100,17 +130,12 @@ class ImageParser(Thread):
         cv.destroyAllWindows()
 
     def stop(self):
-        self.outqueue.clear()
+        """Wrap up the thread's business and stop."""
         cv.destroyAllWindows()
 
-    def getOutQueue(self):
-        return self.outqueue
-
-    def getInQueue(self):
-        return self.inqueue
-
     def run(self):
-        E_SBNotObscuring.wait()  # Comment this out to test imageParser on its own
+        """Run the main behavior of the thread."""
+        E_SB_not_obscuring.wait()  # Comment this out to test imageParser on its own
         # PLACEHOLDER: Full Light
         
         # Runs the libcamera-hello command line utility for its built-in autofocus
@@ -127,9 +152,8 @@ class ImageParser(Thread):
 
             time.sleep(1)
             
-        print("Press 'q' to close \nPress 't' to correct perspective")
-        
-        fps = FPS().start()
+        print("Press 'q' to close\nPress 't' to correct perspective")
+
         tpr = time.time()
 
         while True:
@@ -139,18 +163,6 @@ class ImageParser(Thread):
                 
             if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
                 self.transformation_found = False
-
-            if len(self.inqueue) > 0:
-                if 'pause' in self.inqueue:
-                    # print(f'waiting... {self.inqueue}')
-                    if self.camera_started:
-                        vs.stop()
-                        del vs
-                        self.camera_started = False
-                    time.sleep(1)
-                    continue
-                if 'exit' in self.inqueue:
-                    break
 
             if not self.camera_started:
                 vs = VideoStream(src=self.camera, resolution=self.img_size, framerate=self.frame_rate)
@@ -172,9 +184,11 @@ class ImageParser(Thread):
                     # PLACEHOLDER: Dim Light
                     pass
 
+            # Read the image and rotate it to be right-side-up
             self.image = vs.read()
             self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
-            
+
+            # Keep reading images until we get an image that is not just black
             if np.max(self.image) == 0:
                 continue
             
@@ -187,13 +201,13 @@ class ImageParser(Thread):
                 
                 try:
                     # Find colorful screw image coordinates (anchor points)
-                    anchorCoords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
-                                                        high=self.anchor_upper_color)
+                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
+                                                         high=self.anchor_upper_color)
                     # Order the anchor points (TL, TR, BR, BL)
-                    untransformedPoints = utl.orderAnchorPoints(np.array([anchorCoords[0], anchorCoords[1],
-                                                                          anchorCoords[2], anchorCoords[3]]))
+                    untransformed_points = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
+                                                                          anchor_coords[2], anchor_coords[3]]))
                     # Find the perspective transform matrix from the anchor points
-                    self.transform = cv.getPerspectiveTransform(untransformedPoints, self.target_points)
+                    self.transform = cv.getPerspectiveTransform(untransformed_points, self.target_points)
                     self.transformation_found = True
                 
                 except:  # You should not be using bare excepts! todo fix this
@@ -211,10 +225,10 @@ class ImageParser(Thread):
                 # Find the pixel coordinates of the top-left anchor in the image
                 if not self.Q_TLAnchorPositionOut.full():  # OkR Sort of a slapped-together framerate fix
                     try:
-                        anchorCoords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
+                        anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
                                                             high=self.anchor_upper_color)
-                        orderedAnchors = utl.orderAnchorPoints(np.array([anchorCoords[0], anchorCoords[1],
-                                                                         anchorCoords[2], anchorCoords[3]]))
+                        orderedAnchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
+                                                                         anchor_coords[2], anchor_coords[3]]))
                         tlAnchorPos = orderedAnchors[0]
                         self.tl_anchor_found = True
                         
@@ -235,30 +249,30 @@ class ImageParser(Thread):
             elif laserCoords != (-1, -1):
                 self.laser_dot_found = True
             
-            # Set emitterCoords based off of laserCoords and a predefined offset
+            # Set emitter_coords based off of laserCoords and a predefined offset
             if self.laser_dot_found:
                 if not self.Q_LaserPositionOut.full():
                     self.Q_LaserPositionOut.put(laserCoords)
                     
-                emitterCoords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
+                emitter_coords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
             
             # If all data is ready for tMC, tell tMC
             if self.transformation_found and self.laser_dot_found and self.tl_anchor_found:
-                E_iPDataFlowing.set()
+                E_tIP_data_flowing.set()
 
-            if self.visualize_data:
-                if self.laser_dot_found:
-                    cv.putText(self.image, f'. Laser Dot ({laserCoords[0]},{laserCoords[1]})', laserCoords,
-                               cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
-                    cv.putText(self.image, f'. Emitter Slit ({emitterCoords[0]},{emitterCoords[1]})', emitterCoords,
-                               cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+            # if self.visualize_data:
+            #     if self.laser_dot_found:
+            #         cv.putText(self.image, f'. Laser Dot ({laserCoords[0]},{laserCoords[1]})', laserCoords,
+            #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+            #         cv.putText(self.image, f'. Emitter Slit ({emitter_coords[0]},{emitter_coords[1]})', emitter_coords,
+            #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+            #
+            #     scaleSquareCoord = int(10 + 10 * (self.pixel2mm_constant ** -1))
+            #     cv.rectangle(self.image, (10,10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 2)
+            #     cv.putText(self.image, '10 mm', (scaleSquareCoord + 5, scaleSquareCoord), cv.FONT_HERSHEY_SIMPLEX, 0.5,
+            #                (255, 200, 50), 2)
                 
-                scaleSquareCoord = int(10 + 10 * (self.pixel2mm_constant ** -1))
-                cv.rectangle(self.image, (10,10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 2)
-                cv.putText(self.image, '10 mm', (scaleSquareCoord + 5, scaleSquareCoord), cv.FONT_HERSHEY_SIMPLEX, 0.5,
-                           (255, 200, 50), 2)
-                
-#                 a = self.transform.dot((anchorCoords[0][0], anchorCoords[0][1], 1))
+#                 a = self.transform.dot((anchor_coords[0][0], anchor_coords[0][1], 1))
 #                 a /= a[2]
 #                 cv.putText(self.image, f'{a}', (10,100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,200,50), 2)
                 
@@ -269,21 +283,20 @@ class ImageParser(Thread):
 
             print('-----')
             cv.imshow('Camera Feed', self.image)
-            
-        # Stop the timer and display FPS information
-        fps.stop()
-        try:
-            vs.stop()
-        except:
-            pass
 
 
 class MotorControl(Thread):
     def __init__(self):
+        """Constructor."""
+
+        # Get the queues used for communication
+        global Q_hw_tMC_to_tGK
+        global Q_cmd_tUI_to_tMC
+
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
         
-        self.avgLaserPos = (-1, -1)
-        self.avgTLAnchorPos = (-1, -1)
+        self.avg_laser_pos = (-1, -1)
+        self.avg_tl_anchor_pos = (-1, -1)
         
         Thread.__init__(self)
         
@@ -294,22 +307,22 @@ class MotorControl(Thread):
     def run(self):
         # We are assuming that the sensor head is already at its home position, which is off in the +x +y corner
         self.motors.setHome()
-        E_SBNotObscuring.set()  # Tell tIP the source box is out of the way
+        E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
         
-        E_iPDataFlowing.wait()  # Wait until tIP is producing its data
+        E_tIP_data_flowing.wait()  # Wait until tIP is producing its data
         
         # Main loop, all very OkR
         while True:
                 
-            self.avgLaserPos = tIP.Q_LaserPositionOut.get()
-            self.avgTLAnchorPos = tIP.Q_TLAnchorPositionOut.get()
+            self.avg_laser_pos = tIP.Q_LaserPositionOut.get()
+            self.avg_tl_anchor_pos = tIP.Q_TLAnchorPositionOut.get()
             
             E_StartAutoAlign.wait()
             
             goodPositions = messagebox.askyesno('Confirm Positions & Arm Move',
                                                 f'Are the following positions correct?\n'
-                                                f'Laser Dot: {self.avgLaserPos}\n'
-                                                f'TL Anchor Position: {self.avgTLAnchorPos}')
+                                                f'Laser Dot: {self.avg_laser_pos}\n'
+                                                f'TL Anchor Position: {self.avg_tl_anchor_pos}')
             
             if not goodPositions:
                 E_StartAutoAlign.clear()
@@ -318,8 +331,8 @@ class MotorControl(Thread):
             elif goodPositions:
                 E_StartAutoAlign.clear()
                 # Multiply by -1 for armMoveX because camera and motors have opposite x-axis directions
-                armMoveX = (self.avgTLAnchorPos[0] + 102 - self.avgLaserPos[0]) * -1
-                armMoveY = (self.avgTLAnchorPos[1] + 102 - self.avgLaserPos[1])
+                armMoveX = (self.avg_tl_anchor_pos[0] + 102 - self.avg_laser_pos[0]) * -1
+                armMoveY = (self.avg_tl_anchor_pos[1] + 102 - self.avg_laser_pos[1])
                 
                 armMove = (tIP.pixel2mm_constant * armMoveX, tIP.pixel2mm_constant * armMoveY)
                 
@@ -328,6 +341,11 @@ class MotorControl(Thread):
 
 class Listener(Thread):
     def __init__(self):
+        """Constructor."""
+
+        # Get the queues used to communicate
+        global Q_cmd_tUI_to_tLS
+        global Q_hw_tLS_to_tGK
         Thread.__init__(self)
 
     def run(self):
@@ -337,7 +355,18 @@ class Listener(Thread):
 if __name__ == '__main__':
 
     # Create all the queues being used
-    Q_tUI_to_tIP = Queue()
+    # Nomenclature is Q_[communication type]_[sending thread]_to_[receiving thread]
+    # When referencing them inside a thread, name them Q_[communication type]_[other thread]_[in/out]
+    # These are the command ("cmd") queues, used for threads asking other threads to do things
+    Q_cmd_tUI_to_tGK = Queue()
+    Q_cmd_tUI_to_tIP = Queue()
+    Q_cmd_tUI_to_tMC = Queue()
+    Q_cmd_tUI_to_tLS = Queue()
+    # These are the hardware control ("hw") queues, used specifially for threads sending hardware commands to tGK
+    Q_hw_tUI_to_tGK = Queue()
+    Q_hw_tIP_to_tGK = Queue()
+    Q_hw_tMC_to_tGK = Queue()
+    Q_hw_tLS_to_tGK = Queue()
 
     # Create all the threads being used
     tUI = UserInterface()
@@ -347,8 +376,8 @@ if __name__ == '__main__':
     tLS = Listener()
 
     # Create all the events/conditions/locks used to communicate between threads
-    E_SBNotObscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
-    E_iPDataFlowing = Event()  # Event used to tell tMC that tIP is now producing data
+    E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
+    E_tIP_data_flowing = Event()  # Event used to tell tMC that tIP is now producing data
     
     # Start all the threads
 #     tIP.run()
@@ -357,6 +386,3 @@ if __name__ == '__main__':
     tIP.start()
     tMC.start()
     tLS.start()
-    
-
-
