@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 import motion
 import numpy as np
-import testPlatformAligner as tPA
+import TPA_threads as tPA
 from threading import Event
 
 
@@ -130,17 +130,17 @@ class Window(Frame):
         print(f'{x*steps}, {y*steps}')
         
     def startAutoAligner(self):
-        tPA.iP = tPA.imageParser(camera=('autovideosrc device=/dev/video2 ! appsink'))
-        tPA.mCR = tPA.motorControlRough()
-        tPA.gK = tPA.gateKeeper()
+        tPA.tIP = tPA.ImageParser(camera=('autovideosrc device=/dev/video2 ! appsink'))
+        tPA.tMC = tPA.MotorControl()
+        tPA.tGK = tPA.GateKeeper()
     
         # Create all the events/conditions/locks used to communicate between threads
-        tPA.E_SBNotObscuring = Event() # Event used to tell iP the source box has been moved out of the way
-        tPA.E_iPDataFlowing = Event() # Event used to tell mCR that iP is now producing data
+        tPA.E_SBNotObscuring = Event() # Event used to tell tIP the source box has been moved out of the way
+        tPA.E_iPDataFlowing = Event() # Event used to tell tMC that tIP is now producing data
         tPA.E_StartAutoAlign = Event() # OkR Demo Event, used to prompt the auto align confirmation window
         
-        tPA.iP.start()
-        tPA.mCR.start()
+        tPA.tIP.start()
+        tPA.tMC.start()
         
     def doAutoAlign(self):
         tPA.E_StartAutoAlign.set()

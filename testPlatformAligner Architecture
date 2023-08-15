@@ -24,63 +24,100 @@ tMC - Motor Control
 tLS - Listener
 
 tUI - Thread controlling the user interface, creates and updates the GUI and handles sending user commands to other threads
-tGK - Takes hardware control requests from other threads and executes them if allowed & safe. Also maintains "notice board" representing machine's state
-tIP - Creates internal video feed & extracts useful info from it, which it makes available to other threads. Passes frames to tUI to display a camera feed
-tMC - Pulls parsed data from tIP to calculate the required motor command, and asks tGK to execute it 
+tGK - Takes hardware control requests from other threads and executes them if allowed & safe
+tIP - Creates internal video feed & extracts useful info from it, which it makes available to other threads.
+tMC - Waits for commands from tUI, then uses parsed data from tIP to calculate the required motor move and passes that request to tGK
 tLS - Listens to a USB port for commands from the Oscilloscope (or other external devices) and passes them along to tGK
 
 tUI Thread:
     Initialize variables
-    Set up communication queues
+    - Set up communication queues
     
     Create & place GUI elements
-    - Manual motor controls
+    - Button(s): Manual motor controls
     - Video feed display (debug feed tabs?)
-    - Test type selector? (radio button? dropdown menu?) (Sets offset)
-    - 'Help' button
-    - 'STOP' button
-    - 'Set home' button
-    - 'Read position' button
-    - 'Move To' button
-    - 'Re-calculate transform' button
-    - 'Re-parse QR code' button
-    - 'Calculate anchor position each frame' checkbox
-    - 'Calculate anchor position every ___ frames' field?
-    - Parsed QR code readout
-    - Terminal readout?
-    - FPS counter?
-    
+    - Test type selector (?) (radio button? dropdown menu?) (Sets offset)
+    - Button: Help
+    - Button: STOP
+    - Button: Set Home
+    - Button: Read Position
+    - Button: Move To (with coordinate fields)
+    - Button: Re-calculate Transform
+    - Button: Re-parse QR Code
+    - Checkbox: Calculate anchor position each frame?
+    - Button: Re-calculate Anchor Position
+    - Checkboxes: Data Visualization
+        - Mark laser position?
+        - Mark anchor points?
+        - Display coordinate grid overlay?
+    - Readout: Parsed QR Code Data
+    - Readout: Terminal (?)
+    - Readout: FPS Counter (?)
+
     While True:
-        Collect communications
-        
+        COLLECT communications into internal list
         Handle commands (from other threads)
         
         Lock tIP.parsed_data
         Make deepcopy of tIP.parsed_data (overwrite last deepcopy, if one exists)
         Unlock tIP.parsed_data
-        
-        Mark up the main frame from self.parsed_data according to the other info in self.parsed_data
-        Display the marked-up frame
+
+        if visualizing_data == True:
+            Mark up the main frame from self.parsed_data
+            - Mark up according to the selected data visualization settings
+            - Use data from self.parsed_data for this markup
+
+        Send marked-up frame to display (will only display once we run tk.update, I think)
         
         tk.update_idletasks()
         tk.update()
 
+    -----
+    Command: Placeholder
+
+    -----
+    Button: STOP
+        Send Kill Switch command to tGK
+
+    Button: Help
+        Display help page (popup window)
+        - Direct user to README.txt for full documentation
+        - Show brief cheat sheet type info
+
+    ...
+
+
 tGK Thread:
     Initialize variables
-    Set up communication queues
+    - Set up communication queues
     
-    Set up internal request queue
+    Set up internal request queue (priority queue)
     
     While True:
-        Collect new hardware control requests into internal request queue in order of priority
-        
+        COLLECT communications into internal list
+        - Collect new hardware control requests into internal request queue (different from internal list?)
+
+        Handle commands
+
         Decide what requests (if any) should go through
 
-        Send out these requests to hardware
+        Send approved requests to hardware
+
+    -----
+    Command: Kill Switch
+        Turn off laser
+        Turn off LED floodlights
+        Turn off microscope LEDs
+        Stop motors
+        Start denying all incoming hardware control requests
+        Set "Kill switch tripped" flag on noticeboard
+        Create popup window telling user what just happened, and that they will need to restart the program
+
+
         
 tIP Thread:
     Initialize variables
-    Set up communication queues
+    - Set up communication queues
     
     Get confirmation from user via popup window that it is sensor-safe to turn the lights and laser on. Do not proceed until it is safe.
     
@@ -93,7 +130,7 @@ tIP Thread:
     Set up video stream
     
     while True:
-        Collect communications
+        COLLECT communications into internal list
         
         Handle commands
         
@@ -120,20 +157,23 @@ tIP Thread:
         UPDATE noticeboard to reflect what data is flowing
         
         Unlock self.parsed_data
-        
+
+    -----
+    Command:
     
 tMC Thread:
     Initialize variables
-    Set up communication queues
+    - Set up communication queues
     
     while True:
-        Collect communications
+        COLLECT communications into internal list
         
         Handle commands
         - Calculate motor move
         - Update offsets
-        
-    Command: do motor control        
+
+    -----
+    Command: Do Motor Control
         Lock tIP.parsed_data
         Make deepcopy of tIP.parsed_data
         Unlock tIP.parsed_data
@@ -147,11 +187,11 @@ tMC Thread:
 
 tLS Thread:
     Initialize variables
-    Set up port connection
-    Set up communication queues
+    - Set up port connection
+    - Set up communication queues
     
     while True:
-        Collect communications (if any will ever exist)
+        COLLECT communications into internal list (if any will ever exist)
         
         Handle commands
         
