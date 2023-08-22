@@ -16,14 +16,13 @@ import utils as utl  # A local file containing various utility functions
 
 # TODO:
 #  - Standardize what variables are self. vars and what are globals
-#  - Figure out if you *really* need queues for this
 #  - Update any OkR-commented lines
 #  - Turn tIP.ratio into the scale factor I want
 
 
 class CommObject:
     # The communication object that is getting passed between threads.
-    # Right now this is kind of just a bastardized dict, but I made it a class so I can add methods if needed
+    # Right now this is mostly a bastardized dict, but I made it a class so that I can add methods later if needed
     def __init__(self, c_type, priority, content, id_num):
         """Constructor."""
         self.c_type = c_type
@@ -32,7 +31,32 @@ class CommObject:
         self.id_num = id_num
 
 
-class UserInterface(Thread):
+class MyThread(Thread):
+    # Using class inheritance to keep code dry.
+    # Any methods or __init__() stuff common to all threads goes here.
+
+    def __init__(self):
+        """Constructor."""
+        # comm_list is the internal list that CommObjects get moved into each loop
+        # It is a list so that we can play with it in more ways than a raw queue would allow
+        self.comm_list = []
+
+        Thread.__init__(self)
+
+    def collect_comms(self, in_queue_list):
+        """Collect communications from a list of input queues and write them into self.comm_list.
+        Then, sort comm_list by priority."""
+
+        # This keeps pulling from queues as long as there is something in the queue to pull.
+        # This could cause memory/lag issues with extremely large or continuously-filled queues
+        for q in in_queue_list:
+            if not q.empty():
+                self.comm_list.append(q.get())
+
+        self.comm_list.sort(key=lambda element: element.priority)
+
+
+class UserInterface(MyThread):
     def __init__(self):
         """Constructor."""
         # Get the queues used for communication
@@ -42,13 +66,13 @@ class UserInterface(Thread):
         global Q_cmd_tUI_to_tMC
         global Q_hw_tUI_to_tGK
 
-        Thread.__init__(self)
+        MyThread.__init__(self)
 
     def run(self):
         pass
 
 
-class GateKeeper(Thread):
+class GateKeeper(MyThread):
     def __init__(self):
         """Constructor."""
         # Get the queues used for communication
@@ -57,15 +81,15 @@ class GateKeeper(Thread):
         global Q_hw_tIP_to_tGK
         global Q_hw_tMC_to_tGK
 
-        Thread.__init__(self)
+        MyThread.__init__(self)
 
     def run(self):
         pass
 
 
-class ImageParser(Thread):
+class ImageParser(MyThread):
     def __init__(self, camera=0, img_size=(1000, 1000), frame_rate=30, visualize_data=True):
-        """Constructor"""
+        """Constructor."""
 
         # Get the queues used for communication
         global Q_hw_tIP_to_tGK
@@ -122,7 +146,7 @@ class ImageParser(Thread):
         # self.Q_TLAnchorPositionOut = queue.Queue(maxsize=1)
         # self.Q_QRDataOut = queue.Queue(maxsize=1)
  
-        Thread.__init__(self) 
+        MyThread.__init__(self)
 
     def __del__(self):
         cv.destroyAllWindows()
@@ -134,16 +158,20 @@ class ImageParser(Thread):
     def run(self):
         """Run the main behavior of the thread."""
 
-        #  Ask the user if it is safe to turn the lights and laser on
+        # todo Let the user click "cancel" to terminate the program
+        # Ask the user if it is safe to turn the lights and laser on
         messagebox.showwarning('Sensor Safety Warning',
                                'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
                                'Exposure to this light may damage biased sensors. Please only proceed once it is '
                                'safe to turn the laser and LEDs on.')
 
+        # todo Update this when the communication protocol is better-defined
+        # Ask tGK to turn on the lights and laser
+        Q_hw_tIP_to_tGK.put(CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:LightsOnFull', id_num=1))
+        Q_hw_tIP_to_tGK.put(CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:LaserOn', id_num=2))
 
         E_SB_not_obscuring.wait()  # Comment this out to test imageParser on its own
-        # PLACEHOLDER: Full Light
-        
+
         # Runs the libcamera-hello command line utility for its built-in autofocus
         # If it's stupid but it works, it's not stupid
         os.system("libcamera-hello -n -t 2000")
@@ -232,7 +260,7 @@ class ImageParser(Thread):
                 if not self.Q_TLAnchorPositionOut.full():  # OkR Sort of a slapped-together framerate fix
                     try:
                         anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
-                                                            high=self.anchor_upper_color)
+                                                             high=self.anchor_upper_color)
                         orderedAnchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
                                                                          anchor_coords[2], anchor_coords[3]]))
                         tlAnchorPos = orderedAnchors[0]
@@ -291,7 +319,7 @@ class ImageParser(Thread):
             cv.imshow('Camera Feed', self.image)
 
 
-class MotorControl(Thread):
+class MotorControl(MyThread):
     def __init__(self):
         """Constructor."""
 
@@ -304,7 +332,7 @@ class MotorControl(Thread):
         self.avg_laser_pos = (-1, -1)
         self.avg_tl_anchor_pos = (-1, -1)
         
-        Thread.__init__(self)
+        MyThread.__init__(self)
         
     def stop(self):
         cv.destroyAllWindows()
@@ -345,14 +373,15 @@ class MotorControl(Thread):
                 self.motors.moveFor(armMove[0], armMove[1], 0)
         
 
-class Listener(Thread):
+class Listener(MyThread):
     def __init__(self):
         """Constructor."""
 
         # Get the queues used to communicate
         global Q_cmd_tUI_to_tLS
         global Q_hw_tLS_to_tGK
-        Thread.__init__(self)
+
+        MyThread.__init__(self)
 
     def run(self):
         pass
@@ -368,7 +397,7 @@ if __name__ == '__main__':
     Q_cmd_tUI_to_tIP = Queue()
     Q_cmd_tUI_to_tMC = Queue()
     Q_cmd_tUI_to_tLS = Queue()
-    # These are the hardware control ("hw") queues, used specifially for threads sending hardware commands to tGK
+    # These are the hardware control ("hw") queues, used specifically for threads sending hardware commands to tGK
     Q_hw_tUI_to_tGK = Queue()
     Q_hw_tIP_to_tGK = Queue()
     Q_hw_tMC_to_tGK = Queue()
