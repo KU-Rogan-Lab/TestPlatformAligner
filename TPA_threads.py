@@ -23,12 +23,12 @@ import utils as utl  # A local file containing various utility functions
 class CommObject:
     # The communication object that is getting passed between threads.
     # Right now this is mostly a bastardized dict, but I made it a class so that I can add methods later if needed
-    def __init__(self, c_type, priority, content, id_num):
+    def __init__(self, c_type, priority, content, reply=None):
         """Constructor."""
         self.c_type = c_type
         self.priority = priority
         self.content = content
-        self.id_num = id_num
+        self.reply = reply  # Contains the reply from the thread executing or responding to the communication
 
 
 class MyThread(Thread):
@@ -166,11 +166,22 @@ class ImageParser(MyThread):
                                'safe to turn the laser and LEDs on.')
 
         # todo Update this when the communication protocol is better-defined
-        # Ask tGK to turn on the lights and laser
-        Q_hw_tIP_to_tGK.put(CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:LightsOnFull', id_num=1))
-        Q_hw_tIP_to_tGK.put(CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:LaserOn', id_num=2))
+        # Communications must be defined as a variable and THEN put in the queue so we can reference their .reply later
+        # Ask tGK to turn on the lights
+        comm_startup_lights_on = CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:AutoGrant')
+        Q_hw_tIP_to_tGK.put(comm_startup_lights_on)
 
-        E_SB_not_obscuring.wait()  # Comment this out to test imageParser on its own
+        # Ask tGK to turn on the laser
+        comm_startup_laser_on = CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:AutoGrant')
+        Q_hw_tIP_to_tGK.put(comm_startup_laser_on)
+
+        # Wait until tGK turns on the laser and lights
+        while True:  # todo Address possible busywaiting
+            if comm_startup_laser_on.reply == 'Granted' and comm_startup_lights_on.reply == 'Granted':
+                break
+
+        # Wait for tMC to say that the source box is out of the way
+        E_SB_not_obscuring.wait()
 
         # Runs the libcamera-hello command line utility for its built-in autofocus
         # If it's stupid but it works, it's not stupid
@@ -185,9 +196,7 @@ class ImageParser(MyThread):
             print(vs.read())
             time.sleep(1)
             
-        print("Press 'q' to close\nPress 't' to correct perspective")
-
-        tpr = time.time()
+        print("Press 'q' to close\nPress 't' to correct perspective")  # todo Remove from final version
 
         while True:
             if cv.waitKey(1) & 0xFF == ord('q'):
