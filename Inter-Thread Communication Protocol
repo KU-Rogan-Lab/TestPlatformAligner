@@ -1,0 +1,98 @@
+This file describes the standard protocols and methods for communicating between my threads.
+
+QUEUES:
+-----------------------------------------------------------------------------------------------
+Communication between threads is done using QUEUES.
+
+One queue per communication channel between 2 threads.
+One communication type (data, commands, etc) per queue! No mixing data and commands!
+
+Initialize all the queues at the start of the program, before creating the threads.
+- ALL communication queues are global scope
+
+When initializing a thread, global-in all the queues it will need access to
+
+Queues names use a certain nomenclature:
+    Q_[communication type]_[sending thread]_to_[receiving thread]
+    e.g. "Q_cmd_tUI_to_tGK" "Q_cmd_tUI_to_tIP" "Q_hw_tIP_to_tGK"
+
+Current accepted communication types are:
+    Command - "cmd"
+    Hardware Request - "hw"
+    Data - "data"
+
+COMMOBJECTS:
+-----------------------------------------------------------------------------------------------
+To actually communicate, threads create CommObject objects and place them into communication queues
+- Objects must be given a name if you want to be able to reference them for replies
+
+CommObjects names use a certain nomenclature:
+    C_[description of communication]
+    e.g. "C_startup_lights_on" "C_startup_laser_on" "C_oscilloscope_command"
+
+CommObjects have 5 attributes:
+        self.c_type - what type of communication this object is
+            MUST be set when creating the CommObject
+            Accepted types are the same as for queues, and abbreviated in the same way:
+                "cmd", "hw", "data", etc.
+
+        self.priority - the communication's priority
+            MUST be set when creating the CommObject
+            This is an integer, with higher numbers being more urgent, using the following scale:
+                 5  Manual Override     (Used very rarely for emergency commands from the user)
+                 4  Override            (Used for program-generated emergency overrides)
+                 3  Manual Command      (Used for all non-emergency human commands)
+                 2  Very High Priority
+                 1  High Priority
+                 0  Standard Priority
+                -1  Low Priority
+                -2  Very Low Priority
+
+            (Communications get processed by the receiving thread in priority order)
+
+        self.content - the "payload" of the communication
+            MUST be set when creating the CommObject
+
+            Command communications put a string in self.content
+            Data communications put the data in self.content
+
+        self.reply - set by the receiving thread to reply to the source thread's communication
+            Automatically initializes to None
+
+        self.E_reply_set - an EVENT to let the receiving thread tell the source thread that the reply has been set
+            Automatically initializes to its un-set state
+            AFTER the receiving thread sets the reply, trigger this event
+
+SENDING COMMUNICATIONS:
+-----------------------------------------------------------------------------------------------
+When sending communications, use the following steps:
+    1. Create the communication object, assigning it to a variable with a name using the above nomenclature
+    2. Place the communication in the proper queue
+
+RECEIVING COMMUNICATIONS:
+-----------------------------------------------------------------------------------------------
+
+NOTICE BOARD:
+-----------------------------------------------------------------------------------------------
+The "notice board" is the name for the collection of global-scope events, flags, etc.
+
+The notice board is used for some inter-thread communication, representing the state of the platform, etc.
+
+Events
+    Initialized before the threads are created
+
+    Use the following nomenclature:
+        E_[description of event]
+
+Data
+    Initialized before the threads are created
+
+    Uses the following nomenclature:
+        D_[description of the data]
+
+    All notice board data objects have an associated Lock object which you call before accessing them
+        Locks use the following nomenclature:
+        L_[name of associated data object]
+        e.g. L_D_parsed_image_data
+
+

@@ -58,14 +58,14 @@ tUI Thread:
         COLLECT communications into internal list
         Handle commands (from other threads)
         
-        Lock tIP.parsed_data
-        Make deepcopy of tIP.parsed_data (overwrite last deepcopy, if one exists)
-        Unlock tIP.parsed_data
+        Lock D_parsed_image_data
+        Make deepcopy of D_parsed_image_data (overwrite last deepcopy, if one exists)
+        Unlock D_parsed_image_data
 
         if visualizing_data == True:
-            Mark up the main frame from self.parsed_data
+            Mark up the main frame from self.D_parsed_image_data
             - Mark up according to the selected data visualization settings
-            - Use data from self.parsed_data for this markup
+            - Use data from self.D_parsed_image_data for this markup
 
         Send marked-up frame to display (will only display once we run tk.update, I think)
         
@@ -143,9 +143,9 @@ tIP Thread:
         Find TL anchor coordinate (if needed - only if tUI says to do so, otherwise just assume it is at the transform target point)
         Find laser dot coordinate (if needed - only if tUI says to do so)
                 
-        Lock self.parsed_data
+        Lock D_parsed_image_data
         
-        Update self.parsed_data
+        Update D_parsed_image_data
         - Transform
         - Parsed QR code
         - TL anchor coordinate
@@ -155,7 +155,7 @@ tIP Thread:
         
         UPDATE noticeboard to reflect what data is flowing
         
-        Unlock self.parsed_data
+        Unlock D_parsed_image_data
 
     -----
     Command:
@@ -178,9 +178,9 @@ tMC Thread:
 
     -----
     Command: Do Motor Control
-        Lock tIP.parsed_data
-        Make deepcopy of tIP.parsed_data
-        Unlock tIP.parsed_data
+        Lock D_parsed_image_data
+        Make deepcopy of D_parsed_image_data
+        Unlock D_parsed_image_data
         
         [Motor math]
         

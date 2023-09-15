@@ -22,13 +22,26 @@ import utils as utl  # A local file containing various utility functions
 
 class CommObject:
     # The communication object that is getting passed between threads.
-    # Right now this is mostly a bastardized dict, but I made it a class so that I can add methods later if needed
     def __init__(self, c_type, priority, content, reply=None):
         """Constructor."""
         self.c_type = c_type
         self.priority = priority
         self.content = content
         self.reply = reply  # Contains the reply from the thread executing or responding to the communication
+        self.E_reply_set = Event()  # An event to let the source thread know the reply has been set
+
+    def __repr__(self):
+        return f'CommObject(c_type={self.c_type}, priority={self.priority}, content={self.content}, reply={self.reply})'
+
+
+class ParsedImageData:
+    # A class containing the parsed data produced by tIP
+    def __init__(self, image=None, transform=None, parsed_qr=None, tl_anchor_coord=None, pixel2mm_constant=None):
+        self.image = image
+        self.transform = transform
+        self.parsed_qr = parsed_qr
+        self.tl_anchor_coord = tl_anchor_coord
+        self.pixel2mm_constant = pixel2mm_constant
 
 
 class MyThread(Thread):
@@ -66,10 +79,22 @@ class UserInterface(MyThread):
         global Q_cmd_tUI_to_tMC
         global Q_hw_tUI_to_tGK
 
+        # PLACEHOLDER: Create and place tkinter GUI elements
+
         MyThread.__init__(self)
 
     def run(self):
-        pass
+        """Execute the main function of the loop."""
+        while True:
+            pass
+            # PLACEHOLDER: Collect communications from in-queues (right now tUI has no in-queues)
+            # PLACEHOLDER: Handle commands from other threads
+            # PLACEHOLDER: Make local deepcopy of D_parsed_image_data (using a Lock)
+            # PLACEHOLDER: Mark up main frame from self.D_parsed_image_data
+            # PLACEHOLDER: Send marked-up frame to display
+
+            # PLACEHOLDER: tk.update_idletasks()
+            # PLACEHOLDER: tk.update()
 
 
 class GateKeeper(MyThread):
@@ -84,6 +109,20 @@ class GateKeeper(MyThread):
         MyThread.__init__(self)
 
     def run(self):
+        self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
+        self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+
+        for comm in self.comm_list:
+            if comm.c_type == 'cmd':  # Handle it like a command
+                pass
+
+            elif comm.c_type == 'hw':  # Handle it like a hardware request
+                pass
+
+            # elif comm.c_type == 'data':  # Handle it like data
+            #     pass
+
+
         pass
 
 
@@ -119,7 +158,7 @@ class ImageParser(MyThread):
         
         # The x and y pixel offsets to get from the position of some anchor point (which one is defined below) to
         # the position of the sensor.
-        # Given as [mm distance] * self.pixel2mm_constant**-1
+        # Given as [mm distance] * self.pixel2mm_constant ** -1
         self.sensor_x_offset = int(15 * self.pixel2mm_constant ** -1)
         self.sensor_y_offset = int(25 * self.pixel2mm_constant ** -1)
         
@@ -162,25 +201,29 @@ class ImageParser(MyThread):
         # Ask the user if it is safe to turn the lights and laser on
         messagebox.showwarning('Sensor Safety Warning',
                                'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
-                               'Exposure to this light may damage biased sensors. Please only proceed once it is '
-                               'safe to turn the laser and LEDs on.')
+                               'Exposure to this light may damage voltage-biased sensors. Please only proceed once it '
+                               'is safe to turn the laser and LEDs on.')
 
-        # todo Update this when the communication protocol is better-defined
         # Communications must be defined as a variable and THEN put in the queue so we can reference their .reply later
-        # Ask tGK to turn on the lights
-        comm_startup_lights_on = CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:AutoGrant')
-        Q_hw_tIP_to_tGK.put(comm_startup_lights_on)
+        # Ask tGK to turn on the lights and laser
+        while True:  # This is in a while True block so that we can try again if our first requests are denied
+            # Ask tGK to turn on the lights
+            C_startup_lights_on = CommObject(c_type='hw', priority=1, content='FloodLEDsOnFull')
+            Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
-        # Ask tGK to turn on the laser
-        comm_startup_laser_on = CommObject(c_type='hw_req', priority=2, content='PLACEHOLDER:AutoGrant')
-        Q_hw_tIP_to_tGK.put(comm_startup_laser_on)
+            # Ask tGK to turn on the laser
+            C_startup_laser_on = CommObject(c_type='hw', priority=1, content='LaserOn')
+            Q_hw_tIP_to_tGK.put(C_startup_laser_on)
 
-        # Wait until tGK turns on the laser and lights
-        while True:  # todo Address possible busywaiting
-            if comm_startup_laser_on.reply == 'Granted' and comm_startup_lights_on.reply == 'Granted':
+            # Wait (non-busywaiting, yay!) until tGK has made a reply to both requests
+            C_startup_lights_on.E_reply_set.wait()
+            C_startup_laser_on.E_reply_set.wait()
+
+            # Only continue once our request to turn on the lights and laser is granted
+            if C_startup_lights_on.reply == 'Granted' and C_startup_lights_on.reply == 'Granted':
                 break
 
-        # Wait for tMC to say that the source box is out of the way
+        # Wait for tMC to say that the source box is out of the way before we turn on the camera
         E_SB_not_obscuring.wait()
 
         # Runs the libcamera-hello command line utility for its built-in autofocus
@@ -199,6 +242,8 @@ class ImageParser(MyThread):
         print("Press 'q' to close\nPress 't' to correct perspective")  # todo Remove from final version
 
         while True:
+
+            # TODO: Remove these old-style commands once they are no longer needed
             if cv.waitKey(1) & 0xFF == ord('q'):
                 self.stop()
                 exit()
@@ -400,7 +445,6 @@ if __name__ == '__main__':
 
     # Create all the queues being used
     # Nomenclature is Q_[communication type]_[sending thread]_to_[receiving thread]
-    # When referencing them inside a thread, name them Q_[communication type]_[other thread]_[in/out]
     # These are the command ("cmd") queues, used for threads asking other threads to do things
     Q_cmd_tUI_to_tGK = Queue()
     Q_cmd_tUI_to_tIP = Queue()
