@@ -111,8 +111,7 @@ class GateKeeper(MyThread):
     def run(self):
         while True:
             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
-            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
-
+            
             for comm in self.comm_list:
                 if comm.c_type == 'cmd':  # Handle it like a command
                     # PLACEHOLDER: Handle commands here
@@ -219,12 +218,14 @@ class ImageParser(MyThread):
             C_startup_laser_on = CommObject(c_type='hw', priority=1, content='TurnOnLaser')
             Q_hw_tIP_to_tGK.put(C_startup_laser_on)
 
+
             # Wait (non-busywaiting, yay!) until tGK has made a reply to both requests
             C_startup_lights_on.E_reply_set.wait()
             C_startup_laser_on.E_reply_set.wait()
+            
 
             # Only continue once our request to turn on the lights and laser is granted
-            if C_startup_lights_on.reply == 'Granted' and C_startup_lights_on.reply == 'Granted':
+            if C_startup_lights_on.reply == 'DEBUG:HardwareRequestSeen' and C_startup_lights_on.reply == 'DEBUG:HardwareRequestSeen':
                 break
 
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
@@ -276,7 +277,7 @@ class ImageParser(MyThread):
                     time.sleep(1)
 
             # Control the floodlight LED brightness
-            async with L_floodLED_brightness:  # I must confess I do not know what async does here
+            with L_floodLED_brightness:
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
                     C_lights_on_for_screws = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
                     Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
@@ -361,7 +362,7 @@ class ImageParser(MyThread):
                 emitter_coords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
 
             # Update D_parsed_image_data with the most recent results
-            async with L_D_parsed_image_data:
+            with L_D_parsed_image_data:
                 D_parsed_image_data.image = self.image
                 D_parsed_image_data.pixel2mm_constant = self.pixel2mm_constant
 
@@ -423,18 +424,19 @@ class MotorControl(MyThread):
         self.motors.setHome()
         E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
         
-        E_tIP_data_flowing.wait()  # Wait until tIP is producing its data
-        # todo this event no longer exists, fix this
+#         E_tIP_data_flowing.wait()  # Wait until tIP is producing its data
+#         # todo this event no longer exists, fix this
         
         # Main loop, all very OkR
         while True:
             # Collect communications from other threads
-            self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
-            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
-
-            for comm in self.comm_list:
-                if comm.c_type == 'cmd':  # Handle it like a command
-                    pass
+            pass
+#             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
+#             self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+# 
+#             for comm in self.comm_list:
+#                 if comm.c_type == 'cmd':  # Handle it like a command
+#                     pass
                 
             self.avg_laser_pos = tIP.Q_LaserPositionOut.get()
             self.avg_tl_anchor_pos = tIP.Q_TLAnchorPositionOut.get()
@@ -474,12 +476,13 @@ class Listener(MyThread):
     def run(self):
         while True:
             # Collect communications from other threads
-            self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
-            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
-
-            for comm in self.comm_list:
-                if comm.c_type == 'cmd':  # Handle it like a command
-                    pass
+            pass
+#             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
+#             self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+# 
+#             for comm in self.comm_list:
+#                 if comm.c_type == 'cmd':  # Handle it like a command
+#                     pass
 
 
 if __name__ == '__main__':
@@ -513,7 +516,7 @@ if __name__ == '__main__':
     tLS = Listener()
 
     # Start all the threads
-    # tIP.run()
+#     tIP.run()
     tUI.start()
     tGK.start()
     tIP.start()
