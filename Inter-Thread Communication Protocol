@@ -48,7 +48,9 @@ CommObjects have 5 attributes:
                 -1  Low Priority
                 -2  Very Low Priority
 
-            (Communications get processed by the receiving thread in priority order)
+            Communications get processed by the receiving thread in priority order. Notably, this means that if 2
+            threads try to control hardware at the same time, the higher-priority request gets to ask first
+
 
         self.content - the "payload" of the communication
             MUST be set when creating the CommObject
@@ -71,6 +73,14 @@ When sending communications, use the following steps:
 
 RECEIVING COMMUNICATIONS:
 -----------------------------------------------------------------------------------------------
+Placeholder
+
+COMMANDS/HARDWARE REQUESTS:
+-----------------------------------------------------------------------------------------------
+SetFloodLEDsBright      tells tGK to set the floodlight LEDs to full brightness
+SetFloodLEDsDim         tells tGK to set the floodlight LEDs to partial brightness
+SetFloodLEDsOff         tells tGK to set the floodlight LEDs off
+
 
 NOTICE BOARD:
 -----------------------------------------------------------------------------------------------

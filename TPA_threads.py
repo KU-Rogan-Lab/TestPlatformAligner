@@ -109,18 +109,23 @@ class GateKeeper(MyThread):
         MyThread.__init__(self)
 
     def run(self):
-        self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
-        self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+        while True:
+            self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
+            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
 
-        for comm in self.comm_list:
-            if comm.c_type == 'cmd':  # Handle it like a command
-                pass
+            for comm in self.comm_list:
+                if comm.c_type == 'cmd':  # Handle it like a command
+                    # PLACEHOLDER: Handle commands here
+                    comm.reply = 'DEBUG:CommandSeen'
+                    comm.E_reply_set.set()
 
-            elif comm.c_type == 'hw':  # Handle it like a hardware request
-                pass
+                elif comm.c_type == 'hw':  # Handle it like a hardware request
+                    # PLACEHOLDER: Handle hardware requests here
+                    comm.reply = 'DEBUG:HardwareRequestSeen'
+                    comm.E_reply_set.set()
 
-            # elif comm.c_type == 'data':  # Handle it like data
-            #     pass
+                # elif comm.c_type == 'data':  # Handle it like data
+                #     pass
 
 
         pass
@@ -204,15 +209,14 @@ class ImageParser(MyThread):
                                'Exposure to this light may damage voltage-biased sensors. Please only proceed once it '
                                'is safe to turn the laser and LEDs on.')
 
-        # Communications must be defined as a variable and THEN put in the queue so we can reference their .reply later
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
-            C_startup_lights_on = CommObject(c_type='hw', priority=1, content='FloodLEDsOnFull')
+            C_startup_lights_on = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
             Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
-            C_startup_laser_on = CommObject(c_type='hw', priority=1, content='LaserOn')
+            C_startup_laser_on = CommObject(c_type='hw', priority=1, content='TurnOnLaser')
             Q_hw_tIP_to_tGK.put(C_startup_laser_on)
 
             # Wait (non-busywaiting, yay!) until tGK has made a reply to both requests
@@ -241,13 +245,25 @@ class ImageParser(MyThread):
             
         print("Press 'q' to close\nPress 't' to correct perspective")  # todo Remove from final version
 
-        while True:
+        while True:  # Main loop
+            # Collect communications from other threads
+            self.collect_comms([Q_cmd_tUI_to_tIP])
+            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+
+            # Handle all communications
+            for comm in self.comm_list:
+                if comm.c_type == 'cmd':  # Handle it like a command
+                    # PLACEHOLDER: Handle 'recalculate transform' command
+                    # PLACEHOLDER: Handle 'recalculate anchors' command
+                    # PLACEHOLDER: Handle 're-parse QR' command
+                    # PLACEHOLDER: Handle other commands
+                    comm.reply = 'DEBUG:CommunicationSeen'
+                    comm.E_reply_set.set()
 
             # TODO: Remove these old-style commands once they are no longer needed
             if cv.waitKey(1) & 0xFF == ord('q'):
                 self.stop()
                 exit()
-                
             if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
                 self.transformation_found = False
 
@@ -259,24 +275,24 @@ class ImageParser(MyThread):
                     print('camera not available... ')
                     time.sleep(1)
 
-            if True:
-                # PLACEHOLDER: Check if imageParser has permission to control the lights
-                # Lights on to see the screws when finding transform (screws are transform points),
-                # lights dim for better laser finding afterwards
-                if not self.transformation_found:
-                    # PLACEHOLDER: Full Light
-                    pass
-                    
-                elif self.transformation_found:
-                    # PLACEHOLDER: Dim Light
+            # Control the floodlight LED brightness
+            async with L_floodLED_brightness:  # I must confess I do not know what async does here
+                if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
+                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
+                    Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
-            # Read the image and rotate it to be right-side-up
-            self.image = vs.read()
+                elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
+                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
+                    Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
+                    pass
+
+                self.image = vs.read()
+
+            # Rotate image to be right-side up
             self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
 
-            # Keep reading images until we get an image that is not just black
-            # todo Possibly remove this
+            # Try again if the image is all black
             if np.max(self.image) == 0:
                 continue
             
@@ -307,8 +323,8 @@ class ImageParser(MyThread):
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
                 # Commented out to mute for OkR demo
                 # And, only look for the code once to further avoid time loss
-#                 if self.qr_codes_found == []:
-#                     self.qr_codes_found = utl.decode(self.image)
+                if self.qr_codes_found == []:
+                    self.qr_codes_found = utl.decode(self.image)
                 
                 # Find the pixel coordinates of the top-left anchor in the image
                 if not self.Q_TLAnchorPositionOut.full():  # OkR Sort of a slapped-together framerate fix
@@ -343,10 +359,20 @@ class ImageParser(MyThread):
                     self.Q_LaserPositionOut.put(laserCoords)
                     
                 emitter_coords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
-            
-            # If all data is ready for tMC, tell tMC
-            if self.transformation_found and self.laser_dot_found and self.tl_anchor_found:
-                E_tIP_data_flowing.set()
+
+            # Update D_parsed_image_data with the most recent results
+            async with L_D_parsed_image_data:
+                D_parsed_image_data.image = self.image
+                D_parsed_image_data.pixel2mm_constant = self.pixel2mm_constant
+
+                if self.transformation_found:
+                    D_parsed_image_data.transform = self.transform
+
+                if self.tl_anchor_found:
+                    D_parsed_image_data.tl_anchor_coord = tlAnchorPos  # todo make this a self. variable
+
+                if self.qr_codes_found != []:  # This is kind of the odd one out
+                    D_parsed_image_data.parsed_qr = self.qr_codes_found
 
             # if self.visualize_data:
             #     if self.laser_dot_found:
@@ -398,9 +424,17 @@ class MotorControl(MyThread):
         E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
         
         E_tIP_data_flowing.wait()  # Wait until tIP is producing its data
+        # todo this event no longer exists, fix this
         
         # Main loop, all very OkR
         while True:
+            # Collect communications from other threads
+            self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
+            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+
+            for comm in self.comm_list:
+                if comm.c_type == 'cmd':  # Handle it like a command
+                    pass
                 
             self.avg_laser_pos = tIP.Q_LaserPositionOut.get()
             self.avg_tl_anchor_pos = tIP.Q_TLAnchorPositionOut.get()
@@ -438,13 +472,19 @@ class Listener(MyThread):
         MyThread.__init__(self)
 
     def run(self):
-        pass
+        while True:
+            # Collect communications from other threads
+            self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
+            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
+
+            for comm in self.comm_list:
+                if comm.c_type == 'cmd':  # Handle it like a command
+                    pass
 
 
 if __name__ == '__main__':
 
     # Create all the queues being used
-    # Nomenclature is Q_[communication type]_[sending thread]_to_[receiving thread]
     # These are the command ("cmd") queues, used for threads asking other threads to do things
     Q_cmd_tUI_to_tGK = Queue()
     Q_cmd_tUI_to_tIP = Queue()
@@ -456,6 +496,15 @@ if __name__ == '__main__':
     Q_hw_tMC_to_tGK = Queue()
     Q_hw_tLS_to_tGK = Queue()
 
+    # Create all the events/conditions/locks used to communicate between threads
+    E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
+
+    L_floodLED_brightness = Lock()  # Lock used to lock lights to a certain brightness when tIP is taking a picture
+    L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
+
+    # Create the other orphan variables
+    D_parsed_image_data = ParsedImageData()
+
     # Create all the threads being used
     tUI = UserInterface()
     tGK = GateKeeper()
@@ -463,12 +512,8 @@ if __name__ == '__main__':
     tMC = MotorControl()
     tLS = Listener()
 
-    # Create all the events/conditions/locks used to communicate between threads
-    E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
-    E_tIP_data_flowing = Event()  # Event used to tell tMC that tIP is now producing data
-    
     # Start all the threads
-#     tIP.run()
+    # tIP.run()
     tUI.start()
     tGK.start()
     tIP.start()
