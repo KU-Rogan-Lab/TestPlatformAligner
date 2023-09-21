@@ -22,10 +22,11 @@ import utils as utl  # A local file containing various utility functions
 
 class CommObject:
     # The communication object that is getting passed between threads.
-    def __init__(self, c_type, priority, content, reply=None):
+    def __init__(self, c_type, priority, sender, content, reply=None):
         """Constructor."""
         self.c_type = c_type
         self.priority = priority
+        self.sender = sender  # A string with the name of the thread that sent this communication
         self.content = content
         self.reply = reply  # Contains the reply from the thread executing or responding to the communication
         self.E_reply_set = Event()  # An event to let the source thread know the reply has been set
@@ -113,21 +114,49 @@ class GateKeeper(MyThread):
             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
             
             for comm in self.comm_list:
+                # todo: Make tGK more than a rubber stamp machine
                 if comm.c_type == 'cmd':  # Handle it like a command
+                    comm.reply = 'DEBUG:CommunicationSeen'
                     # PLACEHOLDER: Handle commands here
-                    comm.reply = 'DEBUG:CommandSeen'
                     comm.E_reply_set.set()
 
                 elif comm.c_type == 'hw':  # Handle it like a hardware request
-                    # PLACEHOLDER: Handle hardware requests here
-                    comm.reply = 'DEBUG:HardwareRequestSeen'
+                    if comm.content == 'SetFloodLEDsBright':
+                        messagebox.showinfo(title='Hardware Control',
+                                            message='Please turn the floodlight LEDs on.\n'
+                                                    'Only dismiss this window when the LEDs have been turned on!')
+                        comm.reply = 'Granted'
+                        pass
+
+                    elif comm.content == 'SetFloodLEDsDim':
+                        messagebox.showinfo(title='Hardware Control',
+                                            message='Please turn the floodlight LEDs to dim (partially on).\n'
+                                                    'Only dismiss this window when the LEDs have been turned to dim!\n'
+                                                    '(For now, you can just set them to on)')
+                        comm.reply = 'Granted'
+                        pass
+
+                    elif comm.content == 'SetFloodLEDsOff':
+                        messagebox.showinfo(title='Hardware Control',
+                                            message='Please turn the floodlight LEDs off.\n'
+                                                    'Only dismiss this window when the LEDs have been turned off!')
+                        comm.reply = 'Granted'
+                        pass
+
+                    # todo: Implement laser control of some kind
+                    elif comm.content == 'TurnLaserOn':
+                        comm.reply = 'Granted'
+                        pass
+
+                    elif comm.content == 'TurnLaserOff':
+                        comm.reply = 'Granted'
+                        pass
+
                     comm.E_reply_set.set()
 
                 # elif comm.c_type == 'data':  # Handle it like data
                 #     pass
 
-
-        pass
 
 
 class ImageParser(MyThread):
@@ -211,21 +240,20 @@ class ImageParser(MyThread):
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
-            C_startup_lights_on = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
+            C_startup_lights_on = CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
             Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
-            C_startup_laser_on = CommObject(c_type='hw', priority=1, content='TurnOnLaser')
+            C_startup_laser_on = CommObject(c_type='hw', priority=1, sender='tIP', content='TurnLaserOn')
             Q_hw_tIP_to_tGK.put(C_startup_laser_on)
-
 
             # Wait (non-busywaiting, yay!) until tGK has made a reply to both requests
             C_startup_lights_on.E_reply_set.wait()
             C_startup_laser_on.E_reply_set.wait()
-            
 
             # Only continue once our request to turn on the lights and laser is granted
-            if C_startup_lights_on.reply == 'DEBUG:HardwareRequestSeen' and C_startup_lights_on.reply == 'DEBUG:HardwareRequestSeen':
+            if C_startup_lights_on.reply == 'Granted' and \
+               C_startup_lights_on.reply == 'Granted':
                 break
 
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
@@ -418,6 +446,7 @@ class MotorControl(MyThread):
     def stop(self):
         cv.destroyAllWindows()
         self.motors.moveTo(0, 0)
+        # todo Instead of this, make it save the motor position on shutdown
     
     def run(self):
         # We are assuming that the sensor head is already at its home position, which is off in the +x +y corner

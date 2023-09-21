@@ -21,6 +21,7 @@ Current accepted communication types are:
     Hardware Request - "hw"
     Data - "data"
 
+
 COMMOBJECTS:
 -----------------------------------------------------------------------------------------------
 To actually communicate, threads create CommObject objects and place them into communication queues
@@ -30,7 +31,7 @@ CommObjects names use a certain nomenclature:
     C_[description of communication]
     e.g. "C_startup_lights_on" "C_startup_laser_on" "C_oscilloscope_command"
 
-CommObjects have 5 attributes:
+CommObjects have 6 attributes:
         self.c_type - what type of communication this object is
             MUST be set when creating the CommObject
             Accepted types are the same as for queues, and abbreviated in the same way:
@@ -51,6 +52,8 @@ CommObjects have 5 attributes:
             Communications get processed by the receiving thread in priority order. Notably, this means that if 2
             threads try to control hardware at the same time, the higher-priority request gets to ask first
 
+        self.sender - a string with the name of the thread that sent the request
+            This should be the short, abbreviated form of the thread name - e.g. "tIP", "tUI", "tGK", etc.
 
         self.content - the "payload" of the communication
             MUST be set when creating the CommObject
@@ -65,15 +68,28 @@ CommObjects have 5 attributes:
             Automatically initializes to its un-set state
             AFTER the receiving thread sets the reply, trigger this event
 
+
 SENDING COMMUNICATIONS:
 -----------------------------------------------------------------------------------------------
 When sending communications, use the following steps:
     1. Create the communication object, assigning it to a variable with a name using the above nomenclature
     2. Place the communication in the proper queue
 
+Current Command List:
+    SetFloodLEDsBright - Hardware request, set the floodlight LEDs to full brightness
+    SetFloodLEDsDim - Hardware request, set the floodlight LEDs to partial brightness
+    SetFloodLEDsOff - Hardware request, turn the floodlight LEDs off
+    TurnLaserOn - Hardware request, turn the laser on
+    TurnLaserOff - Hardware request, turn the laser off
+
 RECEIVING COMMUNICATIONS:
 -----------------------------------------------------------------------------------------------
-Placeholder
+
+Current accepted replies:
+- 'DEBUG:CommunicationSeen' - Your communication has been seen
+- 'DEBUG:HardwareRequestSeen' - Your hardware request has been seen
+- 'Granted' - Your request has been granted
+
 
 COMMANDS/HARDWARE REQUESTS:
 -----------------------------------------------------------------------------------------------
