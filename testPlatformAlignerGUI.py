@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 import motion
 import numpy as np
-import TPA_threads as tPA
+import main as tPA
 from threading import Event
 
 
