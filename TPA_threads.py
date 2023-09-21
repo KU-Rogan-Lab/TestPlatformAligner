@@ -115,6 +115,7 @@ class GateKeeper(MyThread):
             
             for comm in self.comm_list:
                 # todo: Make tGK more than a rubber stamp machine
+                # todo: Make tGK ask tUI to do all of this, because tkinter says all the GUI needs to be in one thread
                 if comm.c_type == 'cmd':  # Handle it like a command
                     comm.reply = 'DEBUG:CommunicationSeen'
                     # PLACEHOLDER: Handle commands here
@@ -158,7 +159,6 @@ class GateKeeper(MyThread):
                 #     pass
 
 
-
 class ImageParser(MyThread):
     def __init__(self, camera=0, img_size=(1000, 1000), frame_rate=30, visualize_data=True):
         """Constructor."""
@@ -198,8 +198,8 @@ class ImageParser(MyThread):
         self.threshold = 245  # The threshold used when thresholding the image to look for the laser dot
         
         # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
-        self.anchor_lower_color = np.array([60, 40, 40])  # Lower bound of the color of the anchor objects (HSV format)
-        self.anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchor objects (HSV format)
+        self.anchor_lower_color = np.array([60, 40, 40])  # Lower bound of the color of the anchors (HSV format)
+        self.anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchors (HSV format)
 
         self.camera_started = True
         
@@ -231,11 +231,12 @@ class ImageParser(MyThread):
         """Run the main behavior of the thread."""
 
         # todo Let the user click "cancel" to terminate the program
+        # todo Make tIP ask tUI to show this warning, because tkinter needs all the GUI still to be in one thread
         # Ask the user if it is safe to turn the lights and laser on
-        messagebox.showwarning('Sensor Safety Warning',
-                               'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
-                               'Exposure to this light may damage voltage-biased sensors. Please only proceed once it '
-                               'is safe to turn the laser and LEDs on.')
+        # messagebox.showwarning('Sensor Safety Warning',
+        #                        'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
+        #                        'Exposure to this light may damage voltage-biased sensors. Please only proceed once it '
+        #                        'is safe to turn the laser and LEDs on.')
 
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
@@ -305,14 +306,14 @@ class ImageParser(MyThread):
                     time.sleep(1)
 
             # Control the floodlight LED brightness
-            with L_floodLED_brightness:
+            with L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
-                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
+                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
                     Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
-                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, content='SetFloodLEDsBright')
+                    C_lights_on_for_screws = CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
                     Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 

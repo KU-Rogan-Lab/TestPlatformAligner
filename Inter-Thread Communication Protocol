@@ -110,6 +110,13 @@ Events
     Use the following nomenclature:
         E_[description of event]
 
+States
+    Initialized before the threads are created, updated frequently by tGK
+
+    Uses the following nomenclature:
+        S_[description of state]
+        eg. S_floodLED_setting
+
 Data
     Initialized before the threads are created
 
