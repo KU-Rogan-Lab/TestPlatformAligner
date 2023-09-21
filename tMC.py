@@ -1,10 +1,11 @@
 import main as m
+import config as cfg
 import motion
 import cv2 as cv
 from tkinter import messagebox
 
 
-class MotorControl(m.MyThread):
+class MotorControl(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
@@ -17,7 +18,7 @@ class MotorControl(m.MyThread):
         self.avg_laser_pos = (-1, -1)
         self.avg_tl_anchor_pos = (-1, -1)
 
-        m.MyThread.__init__(self)
+        cfg.MyThread.__init__(self)
 
     def stop(self):
         cv.destroyAllWindows()
@@ -27,7 +28,7 @@ class MotorControl(m.MyThread):
     def run(self):
         # We are assuming that the sensor head is already at its home position, which is off in the +x +y corner
         self.motors.setHome()
-        m.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
+        cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
 
         #         E_tIP_data_flowing.wait()  # Wait until tIP is producing its data
         #         # todo this event no longer exists, fix this

@@ -1,15 +1,16 @@
 import main as m
+import config as cfg
 from tkinter import messagebox
 
 
-class GateKeeper(m.MyThread):
+class GateKeeper(cfg.MyThread):
     def __init__(self):
         """Constructor."""
-        m.MyThread.__init__(self)
+        cfg.MyThread.__init__(self)
 
     def run(self):
         while True:
-            self.collect_comms([m.Q_hw_tIP_to_tGK, m.Q_hw_tMC_to_tGK, m.Q_hw_tLS_to_tGK, m.Q_hw_tUI_to_tGK])
+            self.collect_comms([cfg.Q_hw_tIP_to_tGK, cfg.Q_hw_tMC_to_tGK, cfg.Q_hw_tLS_to_tGK, cfg.Q_hw_tUI_to_tGK])
 
             for comm in self.comm_list:
                 # todo: Make tGK more than a rubber stamp machine

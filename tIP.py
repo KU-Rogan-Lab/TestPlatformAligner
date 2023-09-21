@@ -1,4 +1,5 @@
 import main as m
+import config as cfg
 import numpy as np
 import cv2 as cv
 from imutils.video import VideoStream
@@ -7,13 +8,9 @@ import os
 import utils as utl  # A file with various utility functions
 
 
-class ImageParser(m.MyThread):
+class ImageParser(cfg.MyThread):
     def __init__(self, camera=0, img_size=(1000, 1000), frame_rate=30, visualize_data=True):
         """Constructor."""
-
-        # Get the queues used for communication
-        global Q_hw_tIP_to_tGK
-        global Q_cmd_tUI_to_tIP
 
         self.camera = camera
         self.img_size = img_size
@@ -66,7 +63,7 @@ class ImageParser(m.MyThread):
         # self.Q_TLAnchorPositionOut = queue.Queue(maxsize=1)
         # self.Q_QRDataOut = queue.Queue(maxsize=1)
 
-        m.MyThread.__init__(self)
+        cfg.MyThread.__init__(self)
 
     def __del__(self):
         cv.destroyAllWindows()
@@ -89,12 +86,12 @@ class ImageParser(m.MyThread):
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
-            C_startup_lights_on = m.CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
-            Q_hw_tIP_to_tGK.put(C_startup_lights_on)
+            C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
+            cfg.Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
-            C_startup_laser_on = m.CommObject(c_type='hw', priority=1, sender='tIP', content='TurnLaserOn')
-            Q_hw_tIP_to_tGK.put(C_startup_laser_on)
+            C_startup_laser_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP', content='TurnLaserOn')
+            cfg.Q_hw_tIP_to_tGK.put(C_startup_laser_on)
 
             # Wait (non-busywaiting, yay!) until tGK has made a reply to both requests
             C_startup_lights_on.E_reply_set.wait()
@@ -106,7 +103,7 @@ class ImageParser(m.MyThread):
                 break
 
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
-        E_SB_not_obscuring.wait()
+        cfg.E_SB_not_obscuring.wait()
 
         # Runs the libcamera-hello command line utility for its built-in autofocus
         # If it's stupid but it works, it's not stupid
@@ -125,7 +122,7 @@ class ImageParser(m.MyThread):
 
         while True:  # Main loop
             # Collect communications from other threads
-            self.collect_comms([Q_cmd_tUI_to_tIP])
+            self.collect_comms([cfg.Q_cmd_tUI_to_tIP])
             self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
 
             # Handle all communications
@@ -154,17 +151,17 @@ class ImageParser(m.MyThread):
                     time.sleep(1)
 
             # Control the floodlight LED brightness
-            with m.L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
+            with cfg.L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
-                    C_lights_on_for_screws = m.CommObject(c_type='hw', priority=1, sender='tIP',
+                    C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
                                                           content='SetFloodLEDsBright')
-                    Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
+                    cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
-                    C_lights_on_for_screws = m.CommObject(c_type='hw', priority=1, sender='tIP',
+                    C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
                                                           content='SetFloodLEDsBright')
-                    Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
+                    cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 self.image = vs.read()
@@ -242,18 +239,18 @@ class ImageParser(m.MyThread):
                 emitter_coords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
 
             # Update D_parsed_image_data with the most recent results
-            with m.L_D_parsed_image_data:
-                m.D_parsed_image_data.image = self.image
-                m.D_parsed_image_data.pixel2mm_constant = self.pixel2mm_constant
+            with cfg.L_D_parsed_image_data:
+                cfg.D_parsed_image_data.image = self.image
+                cfg.D_parsed_image_data.pixel2mm_constant = self.pixel2mm_constant
 
                 if self.transformation_found:
-                    m.D_parsed_image_data.transform = self.transform
+                    cfg.D_parsed_image_data.transform = self.transform
 
                 if self.tl_anchor_found:
-                    m.D_parsed_image_data.tl_anchor_coord = tlAnchorPos  # todo make this a self. variable
+                    cfg.D_parsed_image_data.tl_anchor_coord = tlAnchorPos  # todo make this a self. variable
 
                 if self.qr_codes_found != []:  # This is kind of the odd one out
-                    m.D_parsed_image_data.parsed_qr = self.qr_codes_found
+                    cfg.D_parsed_image_data.parsed_qr = self.qr_codes_found
 
             # if self.visualize_data:
             #     if self.laser_dot_found:

@@ -1,7 +1,8 @@
 import main as m
+import config as cfg
 
 
-class UserInterface(m.MyThread):
+class UserInterface(cfg.MyThread):
     def __init__(self):
         """Constructor."""
         # Get the queues used for communication
@@ -13,7 +14,7 @@ class UserInterface(m.MyThread):
 
         # PLACEHOLDER: Create and place tkinter GUI elements
 
-        m.MyThread.__init__(self)
+        cfg.MyThread.__init__(self)
 
     def run(self):
         """Execute the main function of the loop."""

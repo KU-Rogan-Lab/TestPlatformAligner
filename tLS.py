@@ -1,7 +1,8 @@
 import main as m
+import config as cfg
 
 
-class Listener(m.MyThread):
+class Listener(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
@@ -9,7 +10,7 @@ class Listener(m.MyThread):
         global Q_cmd_tUI_to_tLS
         global Q_hw_tLS_to_tGK
 
-        m.MyThread.__init__(self)
+        cfg.MyThread.__init__(self)
 
     def run(self):
         while True:
