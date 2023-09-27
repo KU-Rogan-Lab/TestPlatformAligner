@@ -22,37 +22,42 @@ class GateKeeper(cfg.MyThread):
 
                 elif comm.c_type == 'hw':  # Handle it like a hardware request
                     if comm.content == 'SetFloodLEDsBright':
-                        messagebox.showinfo(title='Hardware Control',
-                                            message='Please turn the floodlight LEDs on.\n'
-                                                    'Only dismiss this window when the LEDs have been turned on!')
-                        cfg.S_floodLED_level = 'Bright'
+                        if not cfg.S_floodLED_level == 'Bright':
+                            messagebox.showinfo(title='Hardware Control',
+                                                message='Please turn the floodlight LEDs on.\n'
+                                                        'Only dismiss this window when the LEDs have been turned on!')
+                            cfg.S_floodLED_level = 'Bright'
                         comm.reply = 'Granted'
                         pass
 
                     elif comm.content == 'SetFloodLEDsDim':
-                        messagebox.showinfo(title='Hardware Control',
-                                            message='Please turn the floodlight LEDs to dim (partially on).\n'
-                                                    'Only dismiss this window when the LEDs have been turned to dim!\n'
-                                                    '(For now, you can just set them to on)')
-                        cfg.S_floodLED_level = 'Dim'
+                        if not cfg.S_floodLED_level == 'Dim':
+                            messagebox.showinfo(title='Hardware Control',
+                                                message='Please turn the floodlight LEDs to dim (partially on).\n'
+                                                        'Only dismiss this window when the LEDs have been set to dim!\n'
+                                                        '(For now, you can just set them to on)')
+                            cfg.S_floodLED_level = 'Dim'
                         comm.reply = 'Granted'
                         pass
 
                     elif comm.content == 'SetFloodLEDsOff':
-                        messagebox.showinfo(title='Hardware Control',
-                                            message='Please turn the floodlight LEDs off.\n'
-                                                    'Only dismiss this window when the LEDs have been turned off!')
-                        cfg.S_floodLED_level = 'Off'
+                        if not cfg.S_floodLED_level == 'Off':
+                            messagebox.showinfo(title='Hardware Control',
+                                                message='Please turn the floodlight LEDs off.\n'
+                                                        'Only dismiss this window when the LEDs have been turned off!')
+                            cfg.S_floodLED_level = 'Off'
                         comm.reply = 'Granted'
                         pass
 
                     # todo: Implement laser control of some kind
                     elif comm.content == 'TurnLaserOn':
+                        # PLACEHOLDER: Turn the laser on
                         cfg.S_laser_on = True
                         comm.reply = 'Granted'
                         pass
 
                     elif comm.content == 'TurnLaserOff':
+                        # PLACEHOLDER: Turn the laser off
                         cfg.S_laser_on = False
                         comm.reply = 'Granted'
                         pass

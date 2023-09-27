@@ -102,7 +102,7 @@ NOTICE BOARD:
 -----------------------------------------------------------------------------------------------
 The "notice board" is the name for the collection of global-scope events, flags, etc.
 
-The notice board is used for some inter-thread communication, representing the state of the platform, etc.
+The notice board is used for some inter-thread communication, for representing the state of the platform, etc.
 
 Events
     Initialized before the threads are created
@@ -119,6 +119,7 @@ States
 
 Data
     Initialized before the threads are created
+    "Data" both contains the parsed image data and sort of acts as a misc. category for notice board vars
 
     Uses the following nomenclature:
         D_[description of the data]
