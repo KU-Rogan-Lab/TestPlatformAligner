@@ -6,6 +6,7 @@
 
 from threading import Thread, Lock, Event
 from queue import Queue
+import numpy as np
 
 
 class CommObject:
@@ -25,12 +26,15 @@ class CommObject:
 
 class ParsedImageData:
     # A class containing the parsed data produced by tIP
-    def __init__(self, image=None, transform=None, parsed_qr=None, tl_anchor_coord=None, pixel2mm_constant=None):
-        self.image = image
-        self.transform = transform
-        self.parsed_qr = parsed_qr
-        self.tl_anchor_coord = tl_anchor_coord
-        self.pixel2mm_constant = pixel2mm_constant
+    def __init__(self, image=None, transform=None, parsed_qr=None, tl_anchor_coord=None, pixel2mm_constant=None,
+                 laser_coords=None, emitter_coords=None):
+        self.image = image  # The image
+        self.transform = transform  # The matrix to perspective transform the raw camera input
+        self.parsed_qr = parsed_qr  # The contents of the qr codes parsed
+        self.tl_anchor_coord = tl_anchor_coord  # The coordinates of the top-left anchor point
+        self.pixel2mm_constant = pixel2mm_constant  # The constant to switch between pixels and mm
+        self.laser_coords = laser_coords  # The coordinates of the laser dot
+        self.emitter_coords = emitter_coords  # The calculated coordinates of the emitter slit
 
 
 class MyThread(Thread):
@@ -81,3 +85,35 @@ S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope
 # Locks used to protect shared resources, uses nomenclature "L_[name of thing protected]"
 L_floodLED_brightness = Lock()  # Lock used to lock lights to a certain brightness when tIP is taking a picture
 L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
+
+
+# ----------------------------------- CONSTANTS GO BELOW HERE -----------------------------------
+
+# The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
+# They MUST be in (TL, TR, BR, BL) order and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
+K_target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
+
+K_true_anchor_dimensions = (98.8, 98.8)  # The true dimensions of the anchor points in mm
+
+# A calculated constant to convert between pixels and mm in the post-transform image
+K_pixel2mm_constant = K_true_anchor_dimensions[0] / (K_target_points[1][0] - K_target_points[0][0])
+
+# The x and y pixel offsets to get from the position of the laser dot to the position of the emitter slit
+# Given as [mm distance] * K_pixel2mm_constant**-1
+K_emitter_x_offset = int(-98 * K_pixel2mm_constant ** -1)
+K_emitter_y_offset = int(-18.5 * K_pixel2mm_constant ** -1)
+
+# The x and y pixel offsets to get from the position of some anchor point (which one is defined below) to
+# the position of the sensor.
+# Given as [mm distance] * K_pixel2mm_constant ** -1
+K_sensor_x_offset = int(15 * K_pixel2mm_constant ** -1)
+K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
+
+K_threshold = 245  # The threshold used when thresholding the image to look for the laser dot
+
+# These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
+K_anchor_lower_color = np.array([60, 40, 40])  # Lower bound of the color of the anchors (HSV format)
+K_anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchors (HSV format)
+
+K_ratio = 1  # Honestly I am not totally sure what this one does. I inherited this variable from past code
+

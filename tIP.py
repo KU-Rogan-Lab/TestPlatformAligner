@@ -2,10 +2,11 @@ import main as m
 import config as cfg
 import numpy as np
 import cv2 as cv
+import utils as utl  # A file with various utility functions
+
 from imutils.video import VideoStream
 import time
 import os
-import utils as utl  # A file with various utility functions
 
 
 class ImageParser(cfg.MyThread):
@@ -15,40 +16,12 @@ class ImageParser(cfg.MyThread):
         self.camera = camera
         self.img_size = img_size
         self.frame_rate = frame_rate
-        self.visualize_data = visualize_data
-
-        # The target points for the image transform
-        # These represent the "true" dimensions of the anchors in pixels.
-        # They MUST be in (TL, TR, BR, BL) order,
-        # and they MUST keep to the same aspect ratio as self.true_anchor_dimensions
-        self.target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
-
-        # The true dimensions of the anchor points in mm
-        self.true_anchor_dimensions = (98.8, 98.8)
-
-        # A calculated constant to convert between pixels and mm in the post-transform image
-        self.pixel2mm_constant = self.true_anchor_dimensions[0] / (self.target_points[1][0] - self.target_points[0][0])
-
-        # The x and y pixel offsets to get from the position of the laser dot to the position of the emitter slit
-        # Given as [mm distance] * self.pixel2mm_constant**-1
-        self.emitter_x_offset = int(-98 * self.pixel2mm_constant ** -1)
-        self.emitter_y_offset = int(-18.5 * self.pixel2mm_constant ** -1)
-
-        # The x and y pixel offsets to get from the position of some anchor point (which one is defined below) to
-        # the position of the sensor.
-        # Given as [mm distance] * self.pixel2mm_constant ** -1
-        self.sensor_x_offset = int(15 * self.pixel2mm_constant ** -1)
-        self.sensor_y_offset = int(25 * self.pixel2mm_constant ** -1)
-
-        self.threshold = 245  # The threshold used when thresholding the image to look for the laser dot
-
-        # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
-        self.anchor_lower_color = np.array([60, 40, 40])  # Lower bound of the color of the anchors (HSV format)
-        self.anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchors (HSV format)
+        self.visualize_data = visualize_data  # todo This should belong to tUI once it is tUI marking up frames
 
         self.camera_started = True
 
-        self.ratio = 1
+        self.laser_coords = (-1, -1)
+        self.emitter_coords = (-1, -1)
 
         self.transformation_found = False
         self.laser_dot_found = False
@@ -123,7 +96,6 @@ class ImageParser(cfg.MyThread):
         while True:  # Main loop
             # Collect communications from other threads
             self.collect_comms([cfg.Q_cmd_tUI_to_tIP])
-            self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
 
             # Handle all communications
             for comm in self.comm_list:
@@ -139,6 +111,7 @@ class ImageParser(cfg.MyThread):
             if cv.waitKey(1) & 0xFF == ord('q'):
                 self.stop()
                 exit()
+
             if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
                 self.transformation_found = False
 
@@ -154,13 +127,13 @@ class ImageParser(cfg.MyThread):
             with cfg.L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                          content='SetFloodLEDsBright')
+                                                            content='SetFloodLEDsBright')
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                          content='SetFloodLEDsBright')
+                                                            content='SetFloodLEDsBright')
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
@@ -174,7 +147,7 @@ class ImageParser(cfg.MyThread):
                 continue
 
             # Consider dropping this resize step if it is having trouble seeing small QR codes
-            self.image = cv.resize(self.image, (int(self.img_size[0] * self.ratio), int(self.img_size[1] * self.ratio)),
+            self.image = cv.resize(self.image, (int(self.img_size[0] * cfg.K_ratio), int(self.img_size[1] * cfg.K_ratio)),
                                    interpolation=cv.INTER_AREA)
 
             # Calculate the perspective transformation matrix if you do not have it already
@@ -182,79 +155,77 @@ class ImageParser(cfg.MyThread):
 
                 try:
                     # Find colorful screw image coordinates (anchor points)
-                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True, low=self.anchor_lower_color,
-                                                         high=self.anchor_upper_color)
+                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True,
+                                                         low=cfg.K_anchor_lower_color,
+                                                         high=cfg.K_anchor_upper_color)
                     # Order the anchor points (TL, TR, BR, BL)
                     untransformed_points = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
                                                                            anchor_coords[2], anchor_coords[3]]))
                     # Find the perspective transform matrix from the anchor points
-                    self.transform = cv.getPerspectiveTransform(untransformed_points, self.target_points)
+                    self.transform = cv.getPerspectiveTransform(untransformed_points, cfg.K_target_points)
                     self.transformation_found = True
 
-                except:  # You should not be using bare excepts! todo fix this
-                    print('Could not find the perspective transform')
+                except:  # I should not be using bare excepts! todo fix this
+                    print('Failed to find the perspective transform')
 
-            if self.transformation_found:
+            if self.transformation_found:  # This needs to stay as an if, not an elif
                 self.image = cv.warpPerspective(self.image, self.transform, (1000, 1000))
 
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
-                # Commented out to mute for OkR demo
                 # And, only look for the code once to further avoid time loss
                 if self.qr_codes_found == []:
                     self.qr_codes_found = utl.decode(self.image)
 
                 # Find the pixel coordinates of the top-left anchor in the image
-                if not self.Q_TLAnchorPositionOut.full():  # OkR Sort of a slapped-together framerate fix
+                if not self.tl_anchor_found:  # Only look for the anchor if we haven't found it yet
                     try:
                         anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True,
-                                                             low=self.anchor_lower_color,
-                                                             high=self.anchor_upper_color)
-                        orderedAnchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
+                                                             low=cfg.K_anchor_lower_color,
+                                                             high=cfg.K_anchor_upper_color)
+                        ordered_anchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
                                                                          anchor_coords[2], anchor_coords[3]]))
-                        tlAnchorPos = orderedAnchors[0]
+                        tl_anchor_pos = ordered_anchors[0]
                         self.tl_anchor_found = True
 
-                    except:
-                        pass  # OkR This is bad, fix this
-
-                # Append the position of the top-left anchor to its out-queue
-                if self.tl_anchor_found and not self.Q_TLAnchorPositionOut.full():
-                    self.Q_TLAnchorPositionOut.put(tlAnchorPos)
+                    except:  # todo Bare except clauses are bad, fix this
+                        print('Failed to find top-left anchor point position')
 
             # Try to find the coords of the laser dot in the image
-            laserCoords = utl.findLaserPoint(img=self.image, visualize=True, threshold=self.threshold)
+            self.laser_coords = utl.findLaserPoint(img=self.image, visualize=True, threshold=cfg.K_threshold)
 
             # Set self.laser_dot_found to True or False based on if we could find it
-            if laserCoords == (-1, -1):  # utl.findLaserPoint returning (-1,-1) indicates that it found nothing
+            if self.laser_coords == (-1, -1):  # utl.findLaserPoint returning (-1,-1) indicates that it found nothing
                 self.laser_dot_found = False
                 # PLACEHOLDER: Try wiggling the motor
-            elif laserCoords != (-1, -1):
+            elif self.laser_coords != (-1, -1):
                 self.laser_dot_found = True
 
-            # Set emitter_coords based off of laserCoords and a predefined offset
+            # Set self.emitter_coords based off of self.laser_coords and a predefined offset
             if self.laser_dot_found:
-                if not self.Q_LaserPositionOut.full():
-                    self.Q_LaserPositionOut.put(laserCoords)
-
-                emitter_coords = (laserCoords[0] + self.emitter_x_offset, laserCoords[1] + self.emitter_y_offset)
+                self.emitter_coords = (self.laser_coords[0] + cfg.K_emitter_x_offset,
+                                       self.laser_coords[1] + cfg.K_emitter_y_offset)
 
             # Update D_parsed_image_data with the most recent results
             with cfg.L_D_parsed_image_data:
                 cfg.D_parsed_image_data.image = self.image
-                cfg.D_parsed_image_data.pixel2mm_constant = self.pixel2mm_constant
+                cfg.D_parsed_image_data.pixel2mm_constant = cfg.K_pixel2mm_constant
 
                 if self.transformation_found:
                     cfg.D_parsed_image_data.transform = self.transform
 
                 if self.tl_anchor_found:
-                    cfg.D_parsed_image_data.tl_anchor_coord = tlAnchorPos  # todo make this a self. variable
+                    cfg.D_parsed_image_data.tl_anchor_coord = tl_anchor_pos  # todo make this a self. variable
 
-                if self.qr_codes_found != []:  # This is kind of the odd one out
+                if self.laser_dot_found:
+                    cfg.D_parsed_image_data.laser_coords = self.laser_coords
+                    cfg.D_parsed_image_data.emitter_coords = self.emitter_coords
+
+                if self.qr_codes_found != []:
                     cfg.D_parsed_image_data.parsed_qr = self.qr_codes_found
 
             # if self.visualize_data:
             #     if self.laser_dot_found:
-            #         cv.putText(self.image, f'. Laser Dot ({laserCoords[0]},{laserCoords[1]})', laserCoords,
+            #         cv.putText(self.image, f'. Laser Dot ({laser_coords[0]},{laser_coords[1]})', laser_coords,
             #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
             #         cv.putText(self.image, f'. Emitter Slit ({emitter_coords[0]},{emitter_coords[1]})', emitter_coords,
             #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)

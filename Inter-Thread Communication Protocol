@@ -100,9 +100,11 @@ SetFloodLEDsOff         tells tGK to set the floodlight LEDs off
 
 NOTICE BOARD:
 -----------------------------------------------------------------------------------------------
-The "notice board" is the name for the collection of global-scope events, flags, etc.
+The "notice board" is the name for the collection of events, flags, etc. that live in config.py and can be accessed by
+all threads and modules
 
-The notice board is used for some inter-thread communication, for representing the state of the platform, etc.
+The notice board is used for some inter-thread communication, for representing the state of the platform, and to contain
+any constants (like pixel2mm, or true anchor dimensions, etc) that will never change at runtime
 
 Events
     Initialized before the threads are created
@@ -115,7 +117,18 @@ States
 
     Uses the following nomenclature:
         S_[description of state]
-        eg. S_floodLED_setting
+        e.g. S_floodLED_level
+
+Constants
+    Initialized before the threads are created
+    Contains variables that are just constants
+
+    Uses the following nomenclature:
+        K_[description of constant]
+        e.g. K_target_points
+
+        (we use a 'K' for 'Konstant' because 'C' is already used for 'communication')
+        ('K' also makes me think of the Boltzmann constant, so it is not *terrible* mnemonically)
 
 Data
     Initialized before the threads are created
