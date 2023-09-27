@@ -111,7 +111,7 @@ Events
         E_[description of event]
 
 States
-    Initialized before the threads are created, updated frequently by tGK
+    Initialized before the threads are created, updated frequently by tGK (and in fact, *only* updated by tGK)
 
     Uses the following nomenclature:
         S_[description of state]

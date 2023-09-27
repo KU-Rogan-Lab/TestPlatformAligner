@@ -21,7 +21,6 @@ import tGK, tIP, tLS, tMC, tUI
 #  - Update any OkR-commented lines
 #  - Turn tIP.ratio into the scale factor I want
 
-
 if __name__ == '__main__':
 
     # Create all the threads being used

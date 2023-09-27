@@ -25,6 +25,7 @@ class GateKeeper(cfg.MyThread):
                         messagebox.showinfo(title='Hardware Control',
                                             message='Please turn the floodlight LEDs on.\n'
                                                     'Only dismiss this window when the LEDs have been turned on!')
+                        cfg.S_floodLED_level = 'Bright'
                         comm.reply = 'Granted'
                         pass
 
@@ -33,6 +34,7 @@ class GateKeeper(cfg.MyThread):
                                             message='Please turn the floodlight LEDs to dim (partially on).\n'
                                                     'Only dismiss this window when the LEDs have been turned to dim!\n'
                                                     '(For now, you can just set them to on)')
+                        cfg.S_floodLED_level = 'Dim'
                         comm.reply = 'Granted'
                         pass
 
@@ -40,15 +42,18 @@ class GateKeeper(cfg.MyThread):
                         messagebox.showinfo(title='Hardware Control',
                                             message='Please turn the floodlight LEDs off.\n'
                                                     'Only dismiss this window when the LEDs have been turned off!')
+                        cfg.S_floodLED_level = 'Off'
                         comm.reply = 'Granted'
                         pass
 
                     # todo: Implement laser control of some kind
                     elif comm.content == 'TurnLaserOn':
+                        cfg.S_laser_on = True
                         comm.reply = 'Granted'
                         pass
 
                     elif comm.content == 'TurnLaserOff':
+                        cfg.S_laser_on = False
                         comm.reply = 'Granted'
                         pass
 

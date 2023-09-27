@@ -1,3 +1,9 @@
+# This is a file that holds all variables and resources that need to be shared between threads.
+# This is mainly the queues and the "notice board" - events, locks, flags, etc.
+# But, this file also contains the shared classes, which is maybe less organized, but it doesn't really matter
+
+# (All this stuff cannot go in main.py, because doing so causes an import loop
+
 from threading import Thread, Lock, Event
 from queue import Queue
 
@@ -65,9 +71,13 @@ Q_hw_tMC_to_tGK = Queue()
 Q_hw_tLS_to_tGK = Queue()
 
 E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
+
+D_parsed_image_data = ParsedImageData()  # The shared data object with the results from tIP's math
+
+S_floodLED_level = ''  # Can be 'Bright', 'Dim', or 'Off'
+S_laser_on = False  # False = laser is off, True = laser is on
+S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope LEDs are on
+
+# Locks used to protect shared resources, uses nomenclature "L_[name of thing protected]"
 L_floodLED_brightness = Lock()  # Lock used to lock lights to a certain brightness when tIP is taking a picture
 L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
-
-D_parsed_image_data = ParsedImageData()
-
-
