@@ -37,14 +37,14 @@ class ParsedImageData:
         self.emitter_coords = emitter_coords  # The calculated coordinates of the emitter slit
 
     def __str__(self):
-        print(f'Parsed Image Data:\n'
-              f'image = {self.image}\n'
-              f'transform = {self.transform}\n'
-              f'parsed_qr = {self.parsed_qr}\n'
-              f'tl_anchor_coord = {self.tl_anchor_coord}\n'
-              f'pixel2mm_constant = {self.pixel2mm_constant}\n'
-              f'laser_coords = {self.laser_coords}\n'
-              f'emitter_coords = {self.emitter_coords}')
+        return f'Parsed Image Data:\n' \
+               f'image = self.image (large array)\n' \
+               f'transform = {self.transform}\n' \
+               f'parsed_qr = {self.parsed_qr}\n' \
+               f'tl_anchor_coord = {self.tl_anchor_coord}\n' \
+               f'pixel2mm_constant = {self.pixel2mm_constant}\n' \
+               f'laser_coords = {self.laser_coords}\n' \
+               f'emitter_coords = {self.emitter_coords}'
 
 
 class MyThread(Thread):

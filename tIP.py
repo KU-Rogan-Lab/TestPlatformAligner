@@ -222,6 +222,8 @@ class ImageParser(cfg.MyThread):
 
                 if self.qr_codes_found != []:
                     cfg.D_parsed_image_data.parsed_qr = self.qr_codes_found
+                
+                print(cfg.D_parsed_image_data)
 
             # if self.visualize_data:
             #     if self.laser_dot_found:
