@@ -1,4 +1,3 @@
-import main as m
 import config as cfg
 import numpy as np
 import cv2 as cv

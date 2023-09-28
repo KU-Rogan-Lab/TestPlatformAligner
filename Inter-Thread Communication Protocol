@@ -93,9 +93,13 @@ Current accepted replies:
 
 COMMANDS/HARDWARE REQUESTS:
 -----------------------------------------------------------------------------------------------
-SetFloodLEDsBright      tells tGK to set the floodlight LEDs to full brightness
-SetFloodLEDsDim         tells tGK to set the floodlight LEDs to partial brightness
-SetFloodLEDsOff         tells tGK to set the floodlight LEDs off
+hw:  SetFloodLEDsBright         tells tGK to set the floodlight LEDs to full brightness
+hw:  SetFloodLEDsDim            tells tGK to set the floodlight LEDs to partial brightness
+hw:  SetFloodLEDsOff            tells tGK to set the floodlight LEDs off
+hw:  TurnLaserOn                tells tGK to turn the laser on
+hw:  TurnLaserOff               tells tGK to turn the laser off
+
+cmd: CalculateAlignMove         tells tMC to calculate the motor move required to align the source box
 
 
 NOTICE BOARD:
@@ -104,7 +108,7 @@ The "notice board" is the name for the collection of events, flags, etc. that li
 all threads and modules
 
 The notice board is used for some inter-thread communication, for representing the state of the platform, and to contain
-any constants (like pixel2mm, or true anchor dimensions, etc) that will never change at runtime
+any constants (like pixel2mm, or true anchor dimensions, etc). It also contains shared classes
 
 Events
     Initialized before the threads are created

@@ -1,4 +1,3 @@
-import main as m
 import config as cfg
 
 
