@@ -205,25 +205,41 @@ class ImageParser(cfg.MyThread):
                 self.emitter_coords = (self.laser_coords[0] + cfg.K_emitter_x_offset,
                                        self.laser_coords[1] + cfg.K_emitter_y_offset)
 
-            # Update D_parsed_image_data with the most recent results
+            # Update D_parsed_image_data with the most recent results, and set events to indicate what data is available
             with cfg.L_D_parsed_image_data:
                 cfg.D_parsed_image_data.image = self.image
                 cfg.D_parsed_image_data.pixel2mm_constant = cfg.K_pixel2mm_constant
+                cfg.E_PID_image_ready.set()
+                cfg.E_PID_pixel2mm_ready.set()
 
                 if self.transformation_found:
                     cfg.D_parsed_image_data.transform = self.transform
+                    cfg.E_PID_transform_ready.set()
+                else:
+                    cfg.E_PID_transform_ready.clear()
 
                 if self.tl_anchor_found:
                     cfg.D_parsed_image_data.tl_anchor_coord = tl_anchor_pos  # todo make this a self. variable
+                    cfg.E_PID_tl_anchor_coord_ready.set()
+                else:
+                    cfg.E_PID_tl_anchor_coord_ready.clear()
 
                 if self.laser_dot_found:
                     cfg.D_parsed_image_data.laser_coords = self.laser_coords
                     cfg.D_parsed_image_data.emitter_coords = self.emitter_coords
+                    cfg.E_PID_laser_coords_ready.set()
+                    cfg.E_PID_emitter_coords_ready.set()
+                else:
+                    cfg.E_PID_laser_coords_ready.clear()
+                    cfg.E_PID_emitter_coords_ready.clear()
 
                 if self.qr_codes_found != []:
                     cfg.D_parsed_image_data.parsed_qr = self.qr_codes_found
+                    cfg.E_PID_parsed_qr_ready.set()
+                else:
+                    cfg.E_PID_parsed_qr_ready.clear()
                 
-                print(cfg.D_parsed_image_data)
+                print(cfg.D_parsed_image_data)  # DEBUG
 
             # if self.visualize_data:
             #     if self.laser_dot_found:

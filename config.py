@@ -86,6 +86,15 @@ Q_hw_tLS_to_tGK = Queue()
 
 E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
 
+# These events indicate whether or not the current D_parsed_image_data package includes the corresponding data
+E_PID_image_ready = Event()
+E_PID_pixel2mm_ready = Event()
+E_PID_transform_ready = Event()
+E_PID_tl_anchor_coord_ready = Event()
+E_PID_laser_coords_ready = Event()
+E_PID_emitter_coords_ready = Event()
+E_PID_parsed_qr_ready = Event()
+
 D_parsed_image_data = ParsedImageData()  # The shared data object with the results from tIP's math
 
 S_floodLED_level = ''  # Can be 'Bright', 'Dim', or 'Off'

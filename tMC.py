@@ -9,10 +9,6 @@ class MotorControl(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
-        # Get the queues used for communication
-        global Q_hw_tMC_to_tGK
-        global Q_cmd_tUI_to_tMC
-
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
 
         self.avg_laser_pos = (-1, -1)
@@ -21,9 +17,9 @@ class MotorControl(cfg.MyThread):
         cfg.MyThread.__init__(self)
 
     def stop(self):
-        cv.destroyAllWindows()
         self.motors.moveTo(0, 0)
         # todo Instead of this, make it save the motor position on shutdown
+        cv.destroyAllWindows()
 
     def run(self):
         # We are assuming that the sensor head is already at its home position, which is off in the +x +y corner
@@ -38,7 +34,6 @@ class MotorControl(cfg.MyThread):
             # Collect communications from other threads
             pass
             #             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])  # todo FIX THIS
-            #             self.comm_list.sort(key=lambda a: a.priority)  # Sort the internal request list by priority
             #
             #             for comm in self.comm_list:
             #                 if comm.c_type == 'cmd':  # Handle it like a command
