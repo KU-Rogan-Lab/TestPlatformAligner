@@ -16,7 +16,7 @@
 
 import tGK, tIP, tLS, tMC, tUI
 
-# TODO:
+# TODO
 #  - Standardize what variables are self. vars and what are globals
 #  - Update any OkR-commented lines
 #  - Turn tIP.ratio into the scale factor I want
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     tUI = tUI.UserInterface()
 
     # Start all the threads
-#     tIP.run()
+    # tIP.run()
     tGK.start()
     tIP.start()
     tLS.start()

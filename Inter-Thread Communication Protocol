@@ -61,6 +61,17 @@ CommObjects have 6 attributes:
             Command communications put a string in self.content
             Data communications put the data in self.content
 
+        self.content_extra - extra content for complex or modular communications
+            Does NOT need to be set when creating a CommObject (initialized to None by default)
+
+            Most communications do NOT need to fill a content_extra field
+
+            Examples of commands that might need a content_extra
+            - Motor control (exact motor move goes in content_extra)
+            - LED control (desired brightness level goes in content_extra)
+            - Popup window requests (desired message goes in content_extra)
+
+
         self.reply - set by the receiving thread to reply to the source thread's communication
             Automatically initializes to None
 
@@ -75,13 +86,6 @@ When sending communications, use the following steps:
     1. Create the communication object, assigning it to a variable with a name using the above nomenclature
     2. Place the communication in the proper queue
 
-Current Command List:
-    SetFloodLEDsBright - Hardware request, set the floodlight LEDs to full brightness
-    SetFloodLEDsDim - Hardware request, set the floodlight LEDs to partial brightness
-    SetFloodLEDsOff - Hardware request, turn the floodlight LEDs off
-    TurnLaserOn - Hardware request, turn the laser on
-    TurnLaserOff - Hardware request, turn the laser off
-
 RECEIVING COMMUNICATIONS:
 -----------------------------------------------------------------------------------------------
 
@@ -91,11 +95,13 @@ Current accepted replies:
 - 'Granted' - Your request has been granted
 
 
-COMMANDS/HARDWARE REQUESTS:
+COMMANDS/HARDWARE REQUEST LIST:
 -----------------------------------------------------------------------------------------------
-hw:  SetFloodLEDsBright         tells tGK to set the floodlight LEDs to full brightness
-hw:  SetFloodLEDsDim            tells tGK to set the floodlight LEDs to partial brightness
-hw:  SetFloodLEDsOff            tells tGK to set the floodlight LEDs off
+hw:  MotorControl               tells tGK to do the motor control move contained in content_2
+hw:  SetFloodLEDs
+        Bright                  tells tGK to turn all the floodlight LEDs on
+        Dim                     tells tGK to set some of the floodlight LEDs off and some on
+        Off                     tells tGK to turn all the floodlight LEDs off
 hw:  TurnLaserOn                tells tGK to turn the laser on
 hw:  TurnLaserOff               tells tGK to turn the laser off
 
@@ -131,7 +137,7 @@ Constants
         K_[description of constant]
         e.g. K_target_points
 
-        (we use a 'K' for 'Konstant' because 'C' is already used for 'communication')
+        (we use a 'K' for 'Konstant' because 'C' is already used for 'Communication')
         ('K' also makes me think of the Boltzmann constant, so it is not *terrible* mnemonically)
 
 Data

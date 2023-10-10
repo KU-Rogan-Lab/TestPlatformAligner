@@ -4,12 +4,6 @@ import config as cfg
 class UserInterface(cfg.MyThread):
     def __init__(self):
         """Constructor."""
-        # Get the queues used for communication
-        # global Q_cmd_tUI_to_tLS
-        # global Q_cmd_tUI_to_tGK
-        # global Q_cmd_tUI_to_tIP
-        # global Q_cmd_tUI_to_tMC
-        # global Q_hw_tUI_to_tGK
 
         # PLACEHOLDER: Create and place tkinter GUI elements
 

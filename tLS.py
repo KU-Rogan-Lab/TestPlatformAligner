@@ -1,17 +1,28 @@
 import config as cfg
+import serial
 
 
 class Listener(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
+        # TODO Put in the correct port here once we know what port we are listening to
+        self.ser = serial.Serial(port='PLACEHOLDER', timeout=0.1)
+
         cfg.MyThread.__init__(self)
 
     def run(self):
         while True:
             # Collect communications from other threads
-            pass
-#             self.collect_comms([Q_hw_tIP_to_tGK, Q_hw_tMC_to_tGK, Q_hw_tLS_to_tGK, Q_hw_tUI_to_tGK])
-#             for comm in self.comm_list:
-#                 if comm.c_type == 'cmd':  # Handle it like a command
-#                     pass
+            self.collect_comms([cfg.Q_cmd_tUI_to_tLS])
+            for comm in self.comm_list:
+                if comm.c_type == 'cmd':  # Handle it like a command
+                    # TODO Implement commands
+                    comm.reply = 'DEBUG:CommunicationSeen'
+
+                comm.E_reply_set.set()
+
+            # TODO Consider adjusting the ratio of communications handled per cycle to serial reads per cycle
+
+            # DEBUG
+            print(self.ser.readline())

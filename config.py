@@ -2,7 +2,7 @@
 # This is mainly the queues and the "notice board" - events, locks, flags, etc.
 # But, this file also contains the shared classes, which is maybe less organized, but it doesn't really matter
 
-# (All this stuff cannot go in main.py, because doing so causes an import loop
+# (All this stuff cannot go in main.py, because doing so causes an import loop)
 
 from threading import Thread, Lock, Event
 from queue import Queue
@@ -11,12 +11,13 @@ import numpy as np
 
 class CommObject:
     # The communication object that is getting passed between threads.
-    def __init__(self, c_type, priority, sender, content, reply=None):
+    def __init__(self, c_type, priority, sender, content, content_2=None, reply=None):
         """Constructor."""
         self.c_type = c_type
         self.priority = priority
         self.sender = sender  # A string with the name of the thread that sent this communication
-        self.content = content
+        self.content = content  # The basic content of the request
+        self.content_2 = content_2  # Contains more detailed or specific info, for complex requests
         self.reply = reply  # Contains the reply from the thread executing or responding to the communication
         self.E_reply_set = Event()  # An event to let the source thread know the reply has been set
 

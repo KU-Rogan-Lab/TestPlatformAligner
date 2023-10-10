@@ -10,7 +10,7 @@ class MotorControl(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
-        # todo tMC should not get motor control, move this to tGK
+        # TODO tMC should not get motor control, move this to tGK
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
 
         self.avg_laser_pos = (-1, -1)
@@ -23,15 +23,15 @@ class MotorControl(cfg.MyThread):
     def stop(self):
         """Handle stopping the thread and wrapping up its business."""
 
-        # todo tGK gets motor control, not tMC
+        # TODO tGK gets motor control, not tMC
         self.motors.moveTo(0, 0)
-        # todo Instead of this, make it save the motor position on shutdown
+        # TODO Instead of this, make it save the motor position on shutdown
         cv.destroyAllWindows()
 
     def run(self):
         """Do the main behavior of the thread."""
 
-        # todo Once tGK has full motor control, it should be doing all of this home-setting stuff
+        # TODO Once tGK has full motor control, it should be doing all of this home-setting stuff
         # We are assuming that the sensor head is starting at its home position
         self.motors.setHome()
         cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
@@ -47,6 +47,7 @@ class MotorControl(cfg.MyThread):
 
         while True:
             # Collect communications from other threads
+            # TODO tMC is basically busy-waiting here, fix this if it causes performance problems
             self.collect_comms([cfg.Q_cmd_tUI_to_tMC])
 
             # Handle all communications
@@ -55,7 +56,7 @@ class MotorControl(cfg.MyThread):
 
                     if comm.content == 'CalculateAlignMove':
                         # Calculate the motor move needed to align the box w/ the sensor, then return it in comm.reply
-                        # todo Make this more robustly calculate a 'safe' arm move
+                        # TODO Make this more robustly calculate a 'safe' arm move
                         #  i.e. Stays within motion bounds, doesn't sweep the laser over the sensor, etc.
                         with cfg.L_D_parsed_image_data:
                             self.D_parsed_image_data = copy.deepcopy(cfg.D_parsed_image_data)

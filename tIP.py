@@ -58,7 +58,8 @@ class ImageParser(cfg.MyThread):
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
-            C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDsBright')
+            C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
+                                                 content='SetFloodLEDs', content_2='Bright')
             cfg.Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
@@ -90,7 +91,7 @@ class ImageParser(cfg.MyThread):
             print(vs.read())
             time.sleep(1)
 
-        print("Press 'q' to close\nPress 't' to correct perspective")  # todo Remove from final version
+        print("Press 'q' to close\nPress 't' to correct perspective")  # TODO Remove from final version
 
         while True:  # Main loop
             # Collect communications from other threads
@@ -106,7 +107,7 @@ class ImageParser(cfg.MyThread):
                     comm.reply = 'DEBUG:CommunicationSeen'
                     comm.E_reply_set.set()
 
-            # TODO: Remove these old-style commands once they are no longer needed
+            # TODO Remove these old-style commands once they are no longer needed
             if cv.waitKey(1) & 0xFF == ord('q'):
                 self.stop()
                 exit()
@@ -126,13 +127,13 @@ class ImageParser(cfg.MyThread):
             with cfg.L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                            content='SetFloodLEDsBright')
+                                                            content='SetFloodLEDs', content_2='Bright')
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                            content='SetFloodLEDsBright')
+                                                            content='SetFloodLEDs', content_2='Dim')
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
@@ -164,7 +165,7 @@ class ImageParser(cfg.MyThread):
                     self.transform = cv.getPerspectiveTransform(untransformed_points, cfg.K_target_points)
                     self.transformation_found = True
 
-                except:  # I should not be using bare excepts! todo fix this
+                except:  # I should not be using bare excepts! TODO Fix this
                     print('Failed to find the perspective transform')
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
@@ -186,7 +187,7 @@ class ImageParser(cfg.MyThread):
                         tl_anchor_pos = ordered_anchors[0]
                         self.tl_anchor_found = True
 
-                    except:  # todo Bare except clauses are bad, fix this
+                    except:  # TODO Bare except clauses are bad, fix this
                         print('Failed to find top-left anchor point position')
 
             # Try to find the coords of the laser dot in the image
