@@ -31,6 +31,7 @@ if __name__ == '__main__':
     tUI = tUI.UserInterface()
 
     # Start all the threads
+    tUI.run()
     # tIP.run()
     tGK.start()
     tIP.start()

@@ -7,7 +7,7 @@ class Listener(cfg.MyThread):
         """Constructor."""
 
         # TODO Put in the correct port here once we know what port we are listening to
-        self.ser = serial.Serial(port='PLACEHOLDER', timeout=0.1)
+        # self.ser = serial.Serial(port='PLACEHOLDER', timeout=0.1)
 
         cfg.MyThread.__init__(self)
 
@@ -25,4 +25,4 @@ class Listener(cfg.MyThread):
             # TODO Consider adjusting the ratio of communications handled per cycle to serial reads per cycle
 
             # DEBUG
-            print(self.ser.readline())
+            # print(self.ser.readline())

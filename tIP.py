@@ -262,5 +262,5 @@ class ImageParser(cfg.MyThread):
             # Talk to Jack/maybe other people at the lab meeting to figure out if we can just assume the anchor
             # points will not be moving
 
-            print('-----')
-            cv.imshow('Camera Feed', self.image)
+            # print('-----')
+            # cv.imshow('Camera Feed', self.image)

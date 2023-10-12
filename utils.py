@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import pyzbar.pyzbar as pyzbar
+import config as cfg
 
 
 # A function to search an image for QR codes and return the decoded codes
@@ -27,9 +28,9 @@ def findAnchorPoints(img, visualize, low, high):
         imageMask = cv.bitwise_and(img, img, mask=mask)
         cv.imshow('Mask', imageMask)
 
-    if len(contours) != 4: # May need to add a loop where we attempt to fix the contour number
+    if len(contours) != 4:  # May need to add a loop where we attempt to fix the contour number
         print(f'Wrong number of anchor point contours! ({len(contours)} contours, should be 4). Attempting to fix...')
-        contours[:] = [c for c in contours if not cv.moments(c)["m00"] < 100]
+        contours[:] = [c for c in contours if not cv.moments(c)["m00"] < 100*cfg.K_ratio]
 
         if len(contours) != 4:
             print(f'Wrong number of contours after fix! ({len(contours)} contours, should be 4)')
@@ -68,7 +69,7 @@ def findLaserPoint(img, visualize, threshold):
 
     for c in contours:
         M = cv.moments(c)
-        if 0 < M["m00"] and M["m00"] < 400:  # The laser dot contour won't be too big or too small, so look for that
+        if 0 < M["m00"] < 400*cfg.K_ratio:  # The laser dot contour won't be too big or small
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
 

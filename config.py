@@ -108,6 +108,7 @@ L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
 
 
 # ----------------------------------- CONSTANTS GO BELOW HERE -----------------------------------
+K_version_number = '0.1.0'
 
 # The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
 # They MUST be in (TL, TR, BR, BL) order and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
