@@ -8,7 +8,7 @@ from threading import Event
 
 class Window(Frame):
 
-    def __init__(self, master=None, port='/dev/ttyACM0', emulate=False):
+    def __init__(self, master=None, port='/dev/ttyACM1', emulate=False):
         Frame.__init__(self, master)        
         self.master = master
 
