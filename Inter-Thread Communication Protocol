@@ -61,15 +61,15 @@ CommObjects have 6 attributes:
             Command communications put a string in self.content
             Data communications put the data in self.content
 
-        self.content_extra - extra content for complex or modular communications
+        self.content_2 - extra content for complex or modular communications
             Does NOT need to be set when creating a CommObject (initialized to None by default)
 
-            Most communications do NOT need to fill a content_extra field
+            Most communications do NOT need to fill a content_2 field
 
-            Examples of commands that might need a content_extra
-            - Motor control (exact motor move goes in content_extra)
-            - LED control (desired brightness level goes in content_extra)
-            - Popup window requests (desired message goes in content_extra)
+            Examples of commands that might need a content_2
+            - Motor control (exact motor move goes in content_2)
+            - LED control (desired brightness level goes in content_2)
+            - Popup window requests (desired message goes in content_2)
 
 
         self.reply - set by the receiving thread to reply to the source thread's communication

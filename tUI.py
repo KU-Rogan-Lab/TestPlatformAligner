@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import scrolledtext
 import copy
 
+import tGK, tIP, tLS, tMC
+
 
 class UserInterface(cfg.MyThread):
     def __init__(self):
@@ -162,8 +164,23 @@ class UserInterface(cfg.MyThread):
         cfg.MyThread.__init__(self)
 
     def moveBtn(self, x, y):
-        # TODO Implement this
-        pass
+        if cfg.L_move_button_command.acquire(timeout=0.1):
+            steps = float(self.stepsEntry.get())
+            C_move_button_input = cfg.CommObject(c_type='hw', priority=3, sender='tUI',
+                                                 content='MotorControl', content_2=(steps, x, y))
+            cfg.Q_hw_tUI_to_tGK.put(C_move_button_input)
+
+            while True:
+                self.my_main_loop()
+                if C_move_button_input.E_reply_set.is_set():
+                    break
+
+            if C_move_button_input.reply == 'Granted':
+                self.GUI_terminal.insert(tk.END, f'Move accepted | X: {x * steps} mm, Y: {y * steps} mm\n')
+            else:
+                self.GUI_terminal.insert(tk.END, 'Motor move denied by Gatekeeper, please try again\n')
+
+            cfg.L_move_button_command.release()
 
     def readPosition(self):
         # TODO Implement this
@@ -185,25 +202,48 @@ class UserInterface(cfg.MyThread):
         # TODO Implement this
         pass
 
-    def run(self):
-        """Execute the main function of the loop."""
-        while True:
+    def my_main_loop(self):
+        """Perform the main function of the thread."""
+        # PLACEHOLDER: Collect communications from in-queues (right now tUI has no in-queues)
+        # PLACEHOLDER: Handle commands from other threads
+        # PLACEHOLDER: Mark up main frame from self.D_parsed_image_data
+        # PLACEHOLDER: Send marked-up frame to display
+
+        with cfg.L_D_parsed_image_data:
+            self.D_parsed_image_data = copy.deepcopy(cfg.D_parsed_image_data)
+
+        try:
+            self.D_parsed_image_data.image = cv.resize(self.D_parsed_image_data.image, (900, 900),
+                                                       interpolation=cv.INTER_AREA)
+            cv.imshow('Camera Feed', self.D_parsed_image_data.image)
+        except:
             pass
-            # PLACEHOLDER: Collect communications from in-queues (right now tUI has no in-queues)
-            # PLACEHOLDER: Handle commands from other threads
-            # PLACEHOLDER: Make local deepcopy of D_parsed_image_data (using a Lock)
-            # PLACEHOLDER: Mark up main frame from self.D_parsed_image_data
-            # PLACEHOLDER: Send marked-up frame to display
 
-            with cfg.L_D_parsed_image_data:
-                self.D_parsed_image_data = copy.deepcopy(cfg.D_parsed_image_data)
+        self.root.update_idletasks()
+        self.root.update()
 
-            try:
-                self.D_parsed_image_data.image = cv.resize(self.D_parsed_image_data.image, (900, 900),
-                                                           interpolation=cv.INTER_AREA)
-                cv.imshow('Camera Feed', self.D_parsed_image_data.image)
-            except:
-                pass
+    def run(self):
+        """Repeatedly run self.my_main_loop()."""
+        # We give the main loop function its own function so that we can run the main loop even while waiting for
+        # communication replies.
+        while True:
+            self.my_main_loop()
 
-            self.root.update_idletasks()
-            self.root.update()
+
+if __name__ == '__main__':
+
+    # Create all the threads being used
+    tGK = tGK.GateKeeper()
+    tIP = tIP.ImageParser(camera=('autovideosrc device=/dev/video2 ! appsink'))
+    tLS = tLS.Listener()
+    tMC = tMC.MotorControl()
+    tUI = UserInterface()
+
+    # Start all the threads
+    # tUI.run()
+    # tIP.run()
+    tGK.start()
+    tIP.start()
+    tLS.start()
+    tMC.start()
+    tUI.run()

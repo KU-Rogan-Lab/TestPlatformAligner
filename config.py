@@ -22,7 +22,8 @@ class CommObject:
         self.E_reply_set = Event()  # An event to let the source thread know the reply has been set
 
     def __repr__(self):
-        return f'CommObject(c_type={self.c_type}, priority={self.priority}, content={self.content}, reply={self.reply})'
+        return (f'CommObject(c_type={self.c_type}, priority={self.priority}, content={self.content},'
+                f'content_2={self.content_2}, reply={self.reply})')
 
 
 class ParsedImageData:
@@ -64,11 +65,15 @@ class MyThread(Thread):
         """Collect communications from a list of input queues and write them into self.comm_list.
         Then, sort comm_list by priority."""
 
+        # Wipe the old comm_list before putting new comms into it
+        self.comm_list = []
+
         # This keeps pulling from queues as long as there is something in the queue to pull.
         # This could cause memory/lag issues with extremely large or continuously-filled queues
         for q in in_queue_list:
             if not q.empty():
                 self.comm_list.append(q.get())
+                print(self.comm_list)
 
         self.comm_list.sort(key=lambda element: element.priority)
 
@@ -104,8 +109,8 @@ S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope
 
 # Locks used to protect shared resources, uses nomenclature "L_[name of thing protected]"
 L_floodLED_brightness = Lock()  # Lock used to lock lights to a certain brightness when tIP is taking a picture
+L_move_button_command = Lock()  # Lock used to prevent new move button commands from starting until the current is done
 L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
-
 
 # ----------------------------------- CONSTANTS GO BELOW HERE -----------------------------------
 K_version_number = '0.1.0'

@@ -10,9 +10,6 @@ class MotorControl(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
-        # TODO tMC should not get motor control, move this to tGK
-        self.motors = motion.motion(port='/dev/ttyACM1', emulate=False)
-
         self.avg_laser_pos = (-1, -1)
         self.avg_tl_anchor_pos = (-1, -1)
 
