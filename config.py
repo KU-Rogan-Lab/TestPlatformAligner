@@ -115,7 +115,7 @@ K_version_number = '0.2.0'
 
 # The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
 # They MUST be in (TL, TR, BR, BL) order and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
-K_target_points = np.float32([[350, 350], [650, 350], [650, 650], [350, 650]])
+K_target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
 
 K_true_anchor_dimensions = (98.8, 98.8)  # The true dimensions of the anchor points in mm
 
@@ -136,8 +136,8 @@ K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
 K_threshold = 245  # The threshold used when thresholding the image to look for the laser dot
 
 # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
-K_anchor_lower_color = np.array([60, 40, 45])  # Lower bound of the color of the anchors (HSV format)
-K_anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchors (HSV format)
+K_anchor_lower_color = np.array([60, 25, 45])  # Lower bound of the color of the anchors (HSV format)
+K_anchor_upper_color = np.array([85, 255, 255])  # Upper bound of the color of the anchors (HSV format)
 
 K_ratio = 1  # Honestly I am not totally sure what this one does. I inherited this variable from past code
 

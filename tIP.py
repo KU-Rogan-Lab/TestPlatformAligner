@@ -9,7 +9,7 @@ import os
 
 
 class ImageParser(cfg.MyThread):
-    def __init__(self, img_size=(2328, 1748), frame_rate=30, autofocus=True, visualize_data=True):
+    def __init__(self, img_size=(800, 800), frame_rate=30, autofocus=True, visualize_data=True):
         # img_size = (500,500) is a debugging thing. Should be 1000,1000
         """Constructor."""
 
@@ -84,7 +84,7 @@ class ImageParser(cfg.MyThread):
         # os.system("v4l2-ctl -d /dev/v4l-subdev1 -c focus_absolute=1200")
         time.sleep(2)
 
-        vs = PiVideoStream(resolution=self.img_size, framerate=30)
+        vs = PiVideoStream(output_size=self.img_size, framerate=30)
         vs.start()
         self.camera_started = True
 
@@ -142,11 +142,7 @@ class ImageParser(cfg.MyThread):
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
-                t1 = time.time()
-                # os.system("libcamera-hello -t 0 --autofocus-mode manual -k")
-                # os.system("f")
                 self.image = vs.read()
-                read_time = time.time() - t1
 
             # Rotate image to be right-side up
             t1 = time.time()
@@ -177,8 +173,9 @@ class ImageParser(cfg.MyThread):
                     self.transform = cv.getPerspectiveTransform(untransformed_points, cfg.K_target_points)
                     self.transformation_found = True
 
-                except:  # I should not be using bare excepts! TODO Fix this
+                except Exception as error:  # I should not be using bare excepts! TODO Fix this
                     print('Failed to find the perspective transform')
+                    print('Exception:', error)
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
                 t1 = time.time()  # TODO Debug
@@ -262,7 +259,6 @@ class ImageParser(cfg.MyThread):
                 print(f'trs {round(transform_time, 5)}\t{round(transform_time / self.loop_time, 2)}')
             except:
                 pass
-            print(f'img {round(read_time, 5)}\t{round((read_time / self.loop_time), 2)}')
             print(f'las {round(laser_time, 5)}\t{round(laser_time / self.loop_time, 2)}')
             print(f'rot {round(rotate_time, 5)}\t{round(rotate_time / self.loop_time, 2)}')
             print(f'tot {round(self.loop_time, 5)}')

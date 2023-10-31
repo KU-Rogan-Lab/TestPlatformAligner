@@ -263,11 +263,7 @@ class UserInterface(cfg.MyThread):
         self.thread_list_label.configure(text=thread_list_text)
 
         try:
-            self.D_PID.image = cv.resize(self.D_PID.image, (800, 800), interpolation=cv.INTER_AREA)
-
-            # This code taken from stackoverflow
-            GUI_recolored = cv.cvtColor(self.D_PID.image, cv.COLOR_BGR2RGBA)
-            img = Image.fromarray(GUI_recolored)
+            img = Image.fromarray(self.D_PID.image)
             imgtk = ImageTk.PhotoImage(image=img)
             self.v_feed_placeholder.imgtk = imgtk
             self.v_feed_placeholder.configure(image=imgtk)
@@ -291,7 +287,7 @@ if __name__ == '__main__':
 
     # Create all the threads being used
     tGK = tGK.GateKeeper()
-    tIP = tIP.ImageParser()  # 2304 x 1728 works (must be multiples of 32 for some reason) 'autovideosrc ! video/x-raw, width=2304, height=1728, framerate=30/1 ! appsink'
+    tIP = tIP.ImageParser()
     tLS = tLS.Listener()
     tMC = tMC.MotorControl()
     tUI = UserInterface()

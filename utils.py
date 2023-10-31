@@ -14,13 +14,13 @@ def decode(im):
 
 def findAnchorPoints(img, visualize, low, high):
     """Take an image and return the anchor points found within"""
-    # Finds coords of the anchor objects (screws, stickers, etc) used  to find the transform and base coords off of
+    # Finds coords of the anchor objects (screws, stickers, etc.) used  to find the transform and base coords off of
     # Makes some assumptions:
     # - there are exactly 4 anchor objects, which lie in 1 plane arranged on the corners of a square in that plane
     # - the anchor objects are a different color from the rest of the image
     points = []
 
-    imageHSV = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    imageHSV = cv.cvtColor(img, cv.COLOR_RGB2HSV)
     mask = cv.inRange(imageHSV, low, high)
     contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
@@ -28,18 +28,21 @@ def findAnchorPoints(img, visualize, low, high):
         imageMask = cv.bitwise_and(img, img, mask=mask)
         cv.drawContours(imageMask, contours, -1, (255, 255, 0), 1)
         cv.imshow('Mask', imageMask)
+        cv.waitKey(15)
 
-    if len(contours) != 4:  # May need to add a loop where we attempt to fix the contour number
-        print(f'Wrong number of anchor point contours! ({len(contours)} contours, should be 4). Attempting to fix...')
-        contours[:] = [c for c in contours if not cv.moments(c)["m00"] < 100*cfg.K_ratio]
+    contour_list = list(contours)  # contours is a tuple, which we cannot modify
 
-        if len(contours) != 4:
-            print(f'Wrong number of contours after fix! ({len(contours)} contours, should be 4)')
+    if len(contour_list) != 4:  # May need to add a loop where we attempt to fix the contour number
+        print(f'Wrong number of anchor point contours! ({len(contour_list)} contours, should be 4). Attempting to fix...')
+        contour_list[:] = [c for c in contour_list if 200*cfg.K_ratio < cv.moments(c)["m00"] < 400*cfg.K_ratio]
+
+        if len(contour_list) != 4:
+            print(f'Wrong number of contours after fix! ({len(contour_list)} contours, should be 4)')
         else:
             print('Successfully fixed contour number!')
 
-    if len(contours) == 4:
-        for c in contours:
+    if len(contour_list) == 4:
+        for c in contour_list:
             M = cv.moments(c)
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
@@ -51,7 +54,7 @@ def findAnchorPoints(img, visualize, low, high):
 
 # A function to return the coordinates of the center of the laser pointer dot in an image
 def findLaserPoint(img, visualize, threshold): 
-    imageGray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    imageGray = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
     ret, imageThresh = cv.threshold(imageGray, threshold, 255, cv.THRESH_TOZERO)
     contours, _ = cv.findContours(imageThresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     (cX, cY) = (-1, -1)  # Initializing these to unreachable coords
@@ -60,7 +63,7 @@ def findLaserPoint(img, visualize, threshold):
     imageCont = cv.cvtColor(imageThresh, cv.COLOR_GRAY2BGR)
 
     if visualize:
-        cv.drawContours(imageCont, contours, -1, (0,255,0), 1)
+        cv.drawContours(imageCont, contours, -1, (0, 255, 0), 1)
         cv.imshow('Threshold', imageCont)
 
     # May need to add a loop where we try to fix the contour number

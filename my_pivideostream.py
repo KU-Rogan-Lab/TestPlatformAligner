@@ -11,12 +11,13 @@ import cv2
 
 
 class PiVideoStream:
-    def __init__(self, resolution=(320, 240), framerate=30, autofocus=True):
+    def __init__(self, output_size=(320, 240), framerate=30, autofocus=True):
         # initialize the camera
         self.picam2 = Picamera2()
+        self.output_size = output_size
 
         # set camera parameters
-        camera_config = self.picam2.create_video_configuration(main={'size': resolution, 'format': 'RGB888'},
+        camera_config = self.picam2.create_video_configuration(main={'size': (2328, 1748), 'format': 'BGR888'},
                                                                controls={'FrameDurationLimits': (int(1000000/framerate),
                                                                                                  int(1000000/framerate))})
         self.picam2.configure(camera_config)
@@ -41,7 +42,7 @@ class PiVideoStream:
     def update(self):
         # keep looping infinitely until the thread is stopped
         while True:
-            self.capture = self.picam2.capture_array('main')
+            self.capture = cv2.resize(self.picam2.capture_array('main'), self.output_size, interpolation=cv2.INTER_AREA)
 
             # if the thread indicator variable is set, stop the thread
             # and resource camera resources
