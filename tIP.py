@@ -3,16 +3,16 @@ import numpy as np
 import cv2 as cv
 import utils as utl  # A file with various utility functions
 
-from imutils.video import VideoStream
+from my_pivideostream import PiVideoStream
 import time
 import os
 
 
 class ImageParser(cfg.MyThread):
-    def __init__(self, camera=0, img_size=(1000, 1000), frame_rate=30, visualize_data=True):
+    def __init__(self, img_size=(2328, 1748), frame_rate=30, autofocus=True, visualize_data=True):
+        # img_size = (500,500) is a debugging thing. Should be 1000,1000
         """Constructor."""
 
-        self.camera = camera
         self.img_size = img_size
         self.frame_rate = frame_rate
         self.visualize_data = visualize_data  # todo This should belong to tUI once it is tUI marking up frames
@@ -34,6 +34,9 @@ class ImageParser(cfg.MyThread):
         # self.Q_LaserPositionOut = queue.Queue(maxsize=1)
         # self.Q_TLAnchorPositionOut = queue.Queue(maxsize=1)
         # self.Q_QRDataOut = queue.Queue(maxsize=1)
+
+        self.t_start = 0  # TODO Debug
+        self.loop_time = 0  # TODO Debug
 
         cfg.MyThread.__init__(self)
 
@@ -78,11 +81,10 @@ class ImageParser(cfg.MyThread):
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
         cfg.E_SB_not_obscuring.wait()
 
-        # Runs the libcamera-hello command line utility for its built-in autofocus
-        # If it's stupid but it works, it's not stupid
-        os.system("libcamera-hello -n -t 2000")
+        # os.system("v4l2-ctl -d /dev/v4l-subdev1 -c focus_absolute=1200")
+        time.sleep(2)
 
-        vs = VideoStream(src=self.camera, usePiCamera=False, resolution=self.img_size, framerate=30)
+        vs = PiVideoStream(resolution=self.img_size, framerate=30)
         vs.start()
         self.camera_started = True
 
@@ -94,6 +96,9 @@ class ImageParser(cfg.MyThread):
         print("Press 'q' to close\nPress 't' to correct perspective")  # TODO Remove from final version
 
         while True:  # Main loop
+            self.t_start = time.time()  # TODO This is debug code, remove when done
+            time.sleep(0.1)  # TODO This is also debug code
+
             # Collect communications from other threads
             self.collect_comms([cfg.Q_cmd_tUI_to_tIP])
 
@@ -108,15 +113,15 @@ class ImageParser(cfg.MyThread):
                     comm.E_reply_set.set()
 
             # TODO Remove these old-style commands once they are no longer needed
-            if cv.waitKey(1) & 0xFF == ord('q'):
-                self.stop()
-                exit()
-
-            if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
-                self.transformation_found = False
+            # if cv.waitKey(1) & 0xFF == ord('q'):
+            #     self.stop()
+            #     exit()
+            #
+            # if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
+            #     self.transformation_found = False
 
             if not self.camera_started:
-                vs = VideoStream(src=self.camera, resolution=self.img_size, framerate=self.frame_rate)
+                vs = PiVideoStream(resolution=self.img_size, framerate=30)
                 vs.start()
                 self.camera_started = True
                 while vs.read() is None:
@@ -137,25 +142,32 @@ class ImageParser(cfg.MyThread):
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
+                t1 = time.time()
+                # os.system("libcamera-hello -t 0 --autofocus-mode manual -k")
+                # os.system("f")
                 self.image = vs.read()
+                read_time = time.time() - t1
 
             # Rotate image to be right-side up
-            self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
+            t1 = time.time()
+            # self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
+            rotate_time = time.time() - t1
 
             # Try again if the image is all black
             if np.max(self.image) == 0:
                 continue
 
-            # Consider dropping this resize step if it is having trouble seeing small QR codes
-            self.image = cv.resize(self.image, (int(self.img_size[0] * cfg.K_ratio), int(self.img_size[1] * cfg.K_ratio)),
-                                   interpolation=cv.INTER_AREA)
+            # Resizing the image to be smaller *may* result in speed increases
+            if cfg.K_ratio != 1:
+                self.image = cv.resize(self.image, (int(self.img_size[0] * cfg.K_ratio), int(self.img_size[1] * cfg.K_ratio)),
+                                       interpolation=cv.INTER_AREA)
 
             # Calculate the perspective transformation matrix if you do not have it already
             if not self.transformation_found:
 
                 try:
                     # Find colorful screw image coordinates (anchor points)
-                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True,
+                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=False,
                                                          low=cfg.K_anchor_lower_color,
                                                          high=cfg.K_anchor_upper_color)
                     # Order the anchor points (TL, TR, BR, BL)
@@ -169,17 +181,20 @@ class ImageParser(cfg.MyThread):
                     print('Failed to find the perspective transform')
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
+                t1 = time.time()  # TODO Debug
                 self.image = cv.warpPerspective(self.image, self.transform, (1000, 1000))
-
+                transform_time = time.time() - t1   # TODO Debug
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
                 # And, only look for the code once to further avoid time loss
                 if self.qr_codes_found == []:
+                    pass
+                    # TODO Let the user control whether the code looks for qrs via checkbox
                     self.qr_codes_found = utl.decode(self.image)
 
                 # Find the pixel coordinates of the top-left anchor in the image
                 if not self.tl_anchor_found:  # Only look for the anchor if we haven't found it yet
                     try:
-                        anchor_coords = utl.findAnchorPoints(img=self.image, visualize=True,
+                        anchor_coords = utl.findAnchorPoints(img=self.image, visualize=False,
                                                              low=cfg.K_anchor_lower_color,
                                                              high=cfg.K_anchor_upper_color)
                         ordered_anchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
@@ -191,7 +206,9 @@ class ImageParser(cfg.MyThread):
                         print('Failed to find top-left anchor point position')
 
             # Try to find the coords of the laser dot in the image
-            self.laser_coords = utl.findLaserPoint(img=self.image, visualize=True, threshold=cfg.K_threshold)
+            t1 = time.time()
+            self.laser_coords = utl.findLaserPoint(img=self.image, visualize=False, threshold=cfg.K_threshold)
+            laser_time = time.time() - t1
 
             # Set self.laser_dot_found to True or False based on if we could find it
             if self.laser_coords == (-1, -1):  # utl.findLaserPoint returning (-1,-1) indicates that it found nothing
@@ -205,7 +222,7 @@ class ImageParser(cfg.MyThread):
                 self.emitter_coords = (self.laser_coords[0] + cfg.K_emitter_x_offset,
                                        self.laser_coords[1] + cfg.K_emitter_y_offset)
 
-            # Update D_parsed_image_data with the most recent results, and set events to indicate what data is available
+            # Update D_PID with the most recent results, and set events to indicate what data is available
             with cfg.L_D_parsed_image_data:
                 cfg.D_parsed_image_data.image = self.image
                 cfg.D_parsed_image_data.pixel2mm_constant = cfg.K_pixel2mm_constant
@@ -219,7 +236,7 @@ class ImageParser(cfg.MyThread):
                     cfg.E_PID_transform_ready.clear()
 
                 if self.tl_anchor_found:
-                    cfg.D_parsed_image_data.tl_anchor_coord = tl_anchor_pos  # todo make this a self. variable
+                    cfg.D_parsed_image_data.tl_anchor_coord = tl_anchor_pos  # TODO Make this a self. variable
                     cfg.E_PID_tl_anchor_coord_ready.set()
                 else:
                     cfg.E_PID_tl_anchor_coord_ready.clear()
@@ -238,29 +255,16 @@ class ImageParser(cfg.MyThread):
                     cfg.E_PID_parsed_qr_ready.set()
                 else:
                     cfg.E_PID_parsed_qr_ready.clear()
-                
-                print(cfg.D_parsed_image_data)  # DEBUG
 
-            # if self.visualize_data:
-            #     if self.laser_dot_found:
-            #         cv.putText(self.image, f'. Laser Dot ({laser_coords[0]},{laser_coords[1]})', laser_coords,
-            #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
-            #         cv.putText(self.image, f'. Emitter Slit ({emitter_coords[0]},{emitter_coords[1]})', emitter_coords,
-            #                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
-            #
-            #     scaleSquareCoord = int(10 + 10 * (self.pixel2mm_constant ** -1))
-            #     cv.rectangle(self.image, (10,10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 2)
-            #     cv.putText(self.image, '10 mm', (scaleSquareCoord + 5, scaleSquareCoord), cv.FONT_HERSHEY_SIMPLEX, 0.5,
-            #                (255, 200, 50), 2)
-
-            #                 a = self.transform.dot((anchor_coords[0][0], anchor_coords[0][1], 1))
-            #                 a /= a[2]
-            #                 cv.putText(self.image, f'{a}', (10,100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,200,50), 2)
-
-            # TODO: This above bit works, but because the anchor points never get updated, it will always just
-            # output [350,650,1] for a. And really, the code is not written to ever update the anchor points.
-            # Talk to Jack/maybe other people at the lab meeting to figure out if we can just assume the anchor
-            # points will not be moving
-
-            # print('-----')
+            # Logging some basic info about how much time each step takes
+            self.loop_time = time.time() - self.t_start
+            try:
+                print(f'trs {round(transform_time, 5)}\t{round(transform_time / self.loop_time, 2)}')
+            except:
+                pass
+            print(f'img {round(read_time, 5)}\t{round((read_time / self.loop_time), 2)}')
+            print(f'las {round(laser_time, 5)}\t{round(laser_time / self.loop_time, 2)}')
+            print(f'rot {round(rotate_time, 5)}\t{round(rotate_time / self.loop_time, 2)}')
+            print(f'tot {round(self.loop_time, 5)}')
+            print('-----')
             # cv.imshow('Camera Feed', self.image)

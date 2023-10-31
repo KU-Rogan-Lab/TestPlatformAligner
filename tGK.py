@@ -1,17 +1,23 @@
 import config as cfg
 import motion
 from tkinter import messagebox
+import time
 
 
 class GateKeeper(cfg.MyThread):
     def __init__(self):
         """Constructor."""
-        self.motors = motion.motion(port='/dev/ttyACM1', emulate=False)
+        self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
 
         cfg.MyThread.__init__(self)
 
     def run(self):
+        # We are assuming that the sensor head is starting at its home position
+        self.motors.setHome()
+        cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
+
         while True:
+            time.sleep(0.01)
             self.collect_comms([cfg.Q_hw_tIP_to_tGK, cfg.Q_hw_tMC_to_tGK, cfg.Q_hw_tLS_to_tGK, cfg.Q_hw_tUI_to_tGK])
             for comm in self.comm_list:
                 # TODO Make tGK more than a rubber stamp machine

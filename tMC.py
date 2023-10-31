@@ -2,6 +2,7 @@ import config as cfg
 import motion
 import cv2 as cv
 import copy
+import time
 
 from tkinter import messagebox
 
@@ -20,19 +21,13 @@ class MotorControl(cfg.MyThread):
     def stop(self):
         """Handle stopping the thread and wrapping up its business."""
 
-        # TODO tGK gets motor control, not tMC
-        self.motors.moveTo(0, 0)
-        # TODO Instead of this, make it save the motor position on shutdown
+        # # TODO tGK gets motor control, not tMC
+        # self.motors.moveTo(0, 0)
+        # # TODO Instead of this, make it save the motor position on shutdown
         cv.destroyAllWindows()
 
     def run(self):
         """Do the main behavior of the thread."""
-
-        # TODO Once tGK has full motor control, it should be doing all of this home-setting stuff
-        # We are assuming that the sensor head is starting at its home position
-        self.motors.setHome()
-        cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
-
         # Wait for all the required parsed image data to be ready
         cfg.E_PID_image_ready.wait()
         cfg.E_PID_pixel2mm_ready.wait()
@@ -43,6 +38,7 @@ class MotorControl(cfg.MyThread):
         cfg.E_PID_pixel2mm_ready.wait()
 
         while True:
+            time.sleep(0.01)  # Keeps it from hogging resources TOO badly. Something of a bandaid
             # Collect communications from other threads
             # TODO tMC is basically busy-waiting here, fix this if it causes performance problems
             self.collect_comms([cfg.Q_cmd_tUI_to_tMC])
@@ -75,8 +71,8 @@ class MotorControl(cfg.MyThread):
                     comm.E_reply_set.set()
 
             # with cfg.L_D_parsed_image_data:
-            #     self.avg_laser_pos = cfg.D_parsed_image_data.laser_coords
-            #     self.avg_tl_anchor_pos = cfg.D_parsed_image_data.tl_anchor_coord
+            #     self.avg_laser_pos = cfg.D_PID.laser_coords
+            #     self.avg_tl_anchor_pos = cfg.D_PID.tl_anchor_coord
             #
             # E_StartAutoAlign.wait()
             #

@@ -2,11 +2,10 @@
 # This is mainly the queues and the "notice board" - events, locks, flags, etc.
 # But, this file also contains the shared classes, which is maybe less organized, but it doesn't really matter
 
-# (All this stuff cannot go in main.py, because doing so causes an import loop)
-
 from threading import Thread, Lock, Event
 from queue import Queue
 import numpy as np
+
 
 
 class CommObject:
@@ -73,7 +72,6 @@ class MyThread(Thread):
         for q in in_queue_list:
             if not q.empty():
                 self.comm_list.append(q.get())
-                print(self.comm_list)
 
         self.comm_list.sort(key=lambda element: element.priority)
 
@@ -92,7 +90,7 @@ Q_hw_tLS_to_tGK = Queue()
 
 E_SB_not_obscuring = Event()  # Event used to tell tIP the source box has been moved out of the way
 
-# These events indicate whether or not the current D_parsed_image_data package includes the corresponding data
+# These events indicate whether or not the current D_PID package includes the corresponding data
 E_PID_image_ready = Event()
 E_PID_pixel2mm_ready = Event()
 E_PID_transform_ready = Event()
@@ -110,14 +108,14 @@ S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope
 # Locks used to protect shared resources, uses nomenclature "L_[name of thing protected]"
 L_floodLED_brightness = Lock()  # Lock used to lock lights to a certain brightness when tIP is taking a picture
 L_move_button_command = Lock()  # Lock used to prevent new move button commands from starting until the current is done
-L_D_parsed_image_data = Lock()  # Lock used to protect D_parsed_image_data
+L_D_parsed_image_data = Lock()  # Lock used to protect D_PID
 
 # ----------------------------------- CONSTANTS GO BELOW HERE -----------------------------------
-K_version_number = '0.1.0'
+K_version_number = '0.2.0'
 
 # The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
 # They MUST be in (TL, TR, BR, BL) order and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
-K_target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
+K_target_points = np.float32([[350, 350], [650, 350], [650, 650], [350, 650]])
 
 K_true_anchor_dimensions = (98.8, 98.8)  # The true dimensions of the anchor points in mm
 
@@ -138,7 +136,7 @@ K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
 K_threshold = 245  # The threshold used when thresholding the image to look for the laser dot
 
 # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
-K_anchor_lower_color = np.array([60, 40, 40])  # Lower bound of the color of the anchors (HSV format)
+K_anchor_lower_color = np.array([60, 40, 45])  # Lower bound of the color of the anchors (HSV format)
 K_anchor_upper_color = np.array([90, 255, 255])  # Upper bound of the color of the anchors (HSV format)
 
 K_ratio = 1  # Honestly I am not totally sure what this one does. I inherited this variable from past code

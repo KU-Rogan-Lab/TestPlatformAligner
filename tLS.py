@@ -1,5 +1,6 @@
 import config as cfg
 import serial
+import time
 
 
 class Listener(cfg.MyThread):
@@ -13,6 +14,7 @@ class Listener(cfg.MyThread):
 
     def run(self):
         while True:
+            time.sleep(0.01)
             # Collect communications from other threads
             self.collect_comms([cfg.Q_cmd_tUI_to_tLS])
             for comm in self.comm_list:

@@ -12,8 +12,8 @@ def decode(im):
     return decodedQrCodes
 
 
-# A funtion to take an image
 def findAnchorPoints(img, visualize, low, high):
+    """Take an image and return the anchor points found within"""
     # Finds coords of the anchor objects (screws, stickers, etc) used  to find the transform and base coords off of
     # Makes some assumptions:
     # - there are exactly 4 anchor objects, which lie in 1 plane arranged on the corners of a square in that plane
@@ -26,6 +26,7 @@ def findAnchorPoints(img, visualize, low, high):
 
     if visualize:
         imageMask = cv.bitwise_and(img, img, mask=mask)
+        cv.drawContours(imageMask, contours, -1, (255, 255, 0), 1)
         cv.imshow('Mask', imageMask)
 
     if len(contours) != 4:  # May need to add a loop where we attempt to fix the contour number

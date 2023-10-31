@@ -1,10 +1,13 @@
+import threading
+
 import config as cfg
 import cv2 as cv
 import tkinter as tk
-from tkinter import scrolledtext
 import copy
-
 import tGK, tIP, tLS, tMC
+
+from tkinter import scrolledtext
+from PIL import Image, ImageTk
 
 
 class UserInterface(cfg.MyThread):
@@ -12,7 +15,7 @@ class UserInterface(cfg.MyThread):
         """Constructor."""
 
         # THREAD VARIABLES GO HERE
-        self.D_parsed_image_data = None  # The local copy of the parsed image data
+        self.D_PID = None  # The local copy of the parsed image data
         self.homeSet = False  # Inherited from old code
         self.sensorsPositions = []  # Inherited from old code
         self.measuredPositions = []  # Inherited from old code
@@ -55,8 +58,12 @@ class UserInterface(cfg.MyThread):
         self.v_feed_placeholder.pack()
 
     # Create and place the widgets in the F_info_readout frame
-        self.info_readout_placeholder = tk.Label(self.F_info_readout, text='INFO READOUTS', bg='#bbbbbb', padx=400, pady=50)
-        self.info_readout_placeholder.pack()
+        self.info_readout_placeholder = tk.Label(self.F_info_readout, text='INFO READOUTS', bg='#bbbbbb', padx=20, pady=20)
+        self.info_readout_placeholder.grid(row=0, column=0)
+
+        # TODO This label is solely for debug purposes, delete when done
+        self.thread_list_label = tk.Label(self.F_info_readout, text='THREAD LIST', bg='#bbbbbb', padx=20, pady=20)
+        self.thread_list_label.grid(row=0, column=1)
 
     # Create and place the widgets in the F_title_box frame
         self.title_label = tk.Label(self.F_title_box, font=("TkDefaultFont", 20),
@@ -84,9 +91,9 @@ class UserInterface(cfg.MyThread):
                                          f'Please see README.txt for full instructions.\n'
                                          f'\n'
                                          f'Program written by Aidan Novo, based on code by Dr. Rogan and Dr. '
-                                         f'Minafra.\n')
-        for i in range(0, 1000):
-            self.GUI_terminal.insert(tk.END, f'LINE {i}\n')
+                                         f'Minafra.\n'
+                                         f'-------------------------------------------------------------------------\n')
+
         self.GUI_terminal.pack()
 
     # Create and place the widgets in the F_motor_controls frame (mostly copied from old code)
@@ -164,6 +171,7 @@ class UserInterface(cfg.MyThread):
         cfg.MyThread.__init__(self)
 
     def moveBtn(self, x, y):
+        """When a button is pressed, send the corresponding motor control request to tGK."""
         if cfg.L_move_button_command.acquire(timeout=0.1):
             steps = float(self.stepsEntry.get())
             C_move_button_input = cfg.CommObject(c_type='hw', priority=3, sender='tUI',
@@ -178,7 +186,7 @@ class UserInterface(cfg.MyThread):
             if C_move_button_input.reply == 'Granted':
                 self.GUI_terminal.insert(tk.END, f'Move accepted | X: {x * steps} mm, Y: {y * steps} mm\n')
             else:
-                self.GUI_terminal.insert(tk.END, 'Motor move denied by Gatekeeper, please try again\n')
+                self.GUI_terminal.insert(tk.END, 'Motor move not granted by Gatekeeper, please try again\n')
 
             cfg.L_move_button_command.release()
 
@@ -202,21 +210,70 @@ class UserInterface(cfg.MyThread):
         # TODO Implement this
         pass
 
+    def mark_up_image(self):
+        """
+        Mark up the image to visualize various data.
+        e.g. marking the positions of the laser dot, emitter slit, adding a mm scale reference, etc.
+        """
+        if cfg.E_PID_laser_coords_ready.is_set():
+            cv.putText(self.D_PID.image,
+                       f'. Laser Dot ({self.D_PID.laser_coords[0]}, {self.D_PID.laser_coords[1]})',
+                       self.D_PID.laser_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+            cv.putText(self.D_PID.image,
+                       f'. Emitter Slit ({self.D_PID.emitter_coords[0]}, {self.D_PID.emitter_coords[1]})',
+                       self.D_PID.emitter_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+
+        scaleSquareCoord = int(10 + 10 * (cfg.K_pixel2mm_constant ** -1))
+        cv.rectangle(self.D_PID.image, (10, 10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 2)
+        cv.putText(self.D_PID.image, '10 mm', (scaleSquareCoord + 5, scaleSquareCoord),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+
+    # a = self.transform.dot((anchor_coords[0][0], anchor_coords[0][1], 1))
+    # a /= a[2]
+    # cv.putText(self.image, f'{a}', (10,100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255,200,50), 2)
+
+    # TODO: This above bit works, but because the anchor points never get updated, it will always just
+    #  output [350,650,1] for a. And really, the code is not written to ever update the anchor points.
+    #  Talk to Jack/maybe other people at the lab meeting to figure out if we can just assume the anchor
+    #  points will not be moving
+
     def my_main_loop(self):
         """Perform the main function of the thread."""
         # PLACEHOLDER: Collect communications from in-queues (right now tUI has no in-queues)
         # PLACEHOLDER: Handle commands from other threads
-        # PLACEHOLDER: Mark up main frame from self.D_parsed_image_data
-        # PLACEHOLDER: Send marked-up frame to display
+
+        # PLACEHOLDER: Check that VNC connection is still good, kill program if connection goes down
 
         with cfg.L_D_parsed_image_data:
-            self.D_parsed_image_data = copy.deepcopy(cfg.D_parsed_image_data)
+            self.D_PID = copy.deepcopy(cfg.D_parsed_image_data)
+
+        self.mark_up_image()  # TODO Make this step optional
+        self.info_readout_placeholder.configure(text=f'tUI {threading.get_native_id()}\n'
+                                                     f'tGK {tGK.native_id}\n'
+                                                     f'tIP {tIP.native_id}\n'
+                                                     f'tLS {tLS.native_id}\n'
+                                                     f'tMC {tMC.native_id}\n'
+                                                     f'last {threading.enumerate()[-1].native_id}')
+
+        # TODO This is debug code, delete it when you are done
+        thread_list_text = ''
+        for i in range(0, threading.active_count()):
+            thread_list_text = thread_list_text + str(threading.enumerate()[i]) + '\n'
+        thread_list_text = thread_list_text.strip('\n')
+        self.thread_list_label.configure(text=thread_list_text)
 
         try:
-            self.D_parsed_image_data.image = cv.resize(self.D_parsed_image_data.image, (900, 900),
-                                                       interpolation=cv.INTER_AREA)
-            cv.imshow('Camera Feed', self.D_parsed_image_data.image)
+            self.D_PID.image = cv.resize(self.D_PID.image, (800, 800), interpolation=cv.INTER_AREA)
+
+            # This code taken from stackoverflow
+            GUI_recolored = cv.cvtColor(self.D_PID.image, cv.COLOR_BGR2RGBA)
+            img = Image.fromarray(GUI_recolored)
+            imgtk = ImageTk.PhotoImage(image=img)
+            self.v_feed_placeholder.imgtk = imgtk
+            self.v_feed_placeholder.configure(image=imgtk)
+
         except:
+            # print('SOMETHING FAILED IN TUI MAINLOOP')
             pass
 
         self.root.update_idletasks()
@@ -234,7 +291,7 @@ if __name__ == '__main__':
 
     # Create all the threads being used
     tGK = tGK.GateKeeper()
-    tIP = tIP.ImageParser(camera=('autovideosrc device=/dev/video2 ! appsink'))
+    tIP = tIP.ImageParser()  # 2304 x 1728 works (must be multiples of 32 for some reason) 'autovideosrc ! video/x-raw, width=2304, height=1728, framerate=30/1 ! appsink'
     tLS = tLS.Listener()
     tMC = tMC.MotorControl()
     tUI = UserInterface()
