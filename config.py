@@ -114,8 +114,10 @@ L_D_parsed_image_data = Lock()  # Lock used to protect D_PID
 K_version_number = '0.2.0'
 
 # The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
-# They MUST be in (TL, TR, BR, BL) order and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
-K_target_points = np.float32([[400, 400], [600, 400], [600, 600], [400, 600]])
+# They MUST be in (TL, TR, BR, BL) order, and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
+K_target_points = np.float32([[310, 310], [490, 310], [490, 490], [310, 490]])
+
+K_image_size = (800, 800)  # Dimensions (in px) of the image we work with
 
 K_true_anchor_dimensions = (98.8, 98.8)  # The true dimensions of the anchor points in mm
 
