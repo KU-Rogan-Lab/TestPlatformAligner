@@ -135,11 +135,14 @@ K_emitter_y_offset = int(-18.5 * K_pixel2mm_constant ** -1)
 K_sensor_x_offset = int(15 * K_pixel2mm_constant ** -1)
 K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
 
-K_threshold = 245  # The threshold used when thresholding the image to look for the laser dot
+K_threshold = 230  # The threshold used when thresholding the image to look for the laser dot
 
 # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
 K_anchor_lower_color = np.array([60, 25, 45])  # Lower bound of the color of the anchors (HSV format)
 K_anchor_upper_color = np.array([85, 255, 255])  # Upper bound of the color of the anchors (HSV format)
 
 K_ratio = 1  # Honestly I am not totally sure what this one does. I inherited this variable from past code
+
+K_visualize_mask = False
+K_visualize_thresh = False
 

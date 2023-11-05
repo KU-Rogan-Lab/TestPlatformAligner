@@ -17,10 +17,13 @@ class PiVideoStream:
         self.output_size = output_size
 
         # set camera parameters
-        camera_config = self.picam2.create_video_configuration(main={'size': (2328, 1748), 'format': 'BGR888'},
+        # for some arcane reason, setting the format to 'RGB888' actually makes a BGR image
+        camera_config = self.picam2.create_video_configuration(main={'size': (2328, 1748), 'format': 'RGB888'},
                                                                controls={'FrameDurationLimits': (int(1000000/framerate),
-                                                                                                 int(1000000/framerate))})
+                                                                                                 int(1000000/framerate)),
+                                                                         'ExposureTime': 10000})
         self.picam2.configure(camera_config)
+        print(camera_config)
         self.picam2.start()
 
         if autofocus:
@@ -42,7 +45,10 @@ class PiVideoStream:
     def update(self):
         # keep looping infinitely until the thread is stopped
         while True:
-            self.capture = cv2.resize(self.picam2.capture_array('main'), self.output_size, interpolation=cv2.INTER_AREA)
+            self.capture = cv2.resize(
+                self.picam2.capture_array('main')[:, 150:-150],
+                self.output_size, interpolation=cv2.INTER_AREA
+            )
 
             # if the thread indicator variable is set, stop the thread
             # and resource camera resources

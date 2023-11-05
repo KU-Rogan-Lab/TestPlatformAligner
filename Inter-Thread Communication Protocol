@@ -98,6 +98,9 @@ Current accepted replies:
 COMMANDS/HARDWARE REQUEST LIST:
 -----------------------------------------------------------------------------------------------
 hw:  MotorControl               tells tGK to do the motor control move contained in content_2
+hw:  ReadMotorPosition          tells tGK to send a reply with the position of the motors
+hw:  SetMotorHome               tells tGK to set the current motor position as home
+hw:  MotorsToPosition           tells tGK to move the motors to the position in content_2
 hw:  SetFloodLEDs
         Bright                  tells tGK to turn all the floodlight LEDs on
         Dim                     tells tGK to set some of the floodlight LEDs off and some on

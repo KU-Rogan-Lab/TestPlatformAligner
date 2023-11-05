@@ -8,6 +8,7 @@ class GateKeeper(cfg.MyThread):
     def __init__(self):
         """Constructor."""
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
+        self.homeSet = False  # Inherited from old code
 
         cfg.MyThread.__init__(self)
 
@@ -31,6 +32,24 @@ class GateKeeper(cfg.MyThread):
                     if comm.content == 'MotorControl':
                         steps, x, y = comm.content_2
                         self.motors.moveFor(x * steps, y * steps, 0)
+                        comm.reply = 'Granted'
+
+                    elif comm.content == 'ReadMotorPosition':
+                        pos = self.motors.getPosition()
+                        comm.reply = pos
+
+                    elif comm.content == 'SetMotorHome':
+                        self.motors.setHome()
+                        pos = self.motors.getPosition()
+                        comm.reply = pos
+                        self.homeSet = True
+
+                    elif comm.content == 'MotorsToPosition':
+                        if self.homeSet:
+                            positionX, positionY = comm.content_2
+                            self.motors.moveTo(positionX, positionY)
+                        else:
+                            messagebox.showerror("Home not Set!", "Set home first!")
                         comm.reply = 'Granted'
 
                     elif comm.content == 'SetFloodLEDs':

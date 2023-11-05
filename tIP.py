@@ -30,6 +30,10 @@ class ImageParser(cfg.MyThread):
         self.image = np.array([[0, 0, 0]])
         self.qr_codes_found = []
 
+        self.tft_list = []  # TODO Debug
+        self.tt_list = []  # TODO Debug
+        self.lt_list = []  # TODO Debug
+
         # # Defining all the queues used to send data out of the thread
         # self.Q_LaserPositionOut = queue.Queue(maxsize=1)
         # self.Q_TLAnchorPositionOut = queue.Queue(maxsize=1)
@@ -49,6 +53,14 @@ class ImageParser(cfg.MyThread):
 
     def run(self):
         """Run the main behavior of the thread."""
+
+        # This namedWindow stuff needs to be here instead of in init because the cv.namedWindow call must be in the same
+        # thread as the cv.imshow call(s)
+        cv.namedWindow('Mask', cv.WINDOW_AUTOSIZE + cv.WINDOW_GUI_NORMAL)
+        cv.namedWindow('Threshold', cv.WINDOW_AUTOSIZE + cv.WINDOW_GUI_NORMAL)
+        cv.namedWindow('Camera Feed', cv.WINDOW_AUTOSIZE + cv.WINDOW_GUI_NORMAL)
+        cv.moveWindow('Camera Feed', 3, 40)
+        cv.waitKey(1)
 
         # todo Let the user click "cancel" to terminate the program
         # todo Make tIP ask tUI to show this warning, because tkinter needs all the GUI still to be in one thread
@@ -81,9 +93,6 @@ class ImageParser(cfg.MyThread):
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
         cfg.E_SB_not_obscuring.wait()
 
-        # os.system("v4l2-ctl -d /dev/v4l-subdev1 -c focus_absolute=1200")
-        time.sleep(2)
-
         vs = PiVideoStream(output_size=self.img_size, framerate=30)
         vs.start()
         self.camera_started = True
@@ -97,7 +106,6 @@ class ImageParser(cfg.MyThread):
 
         while True:  # Main loop
             self.t_start = time.time()  # TODO This is debug code, remove when done
-            time.sleep(0.1)  # TODO This is also debug code
 
             # Collect communications from other threads
             self.collect_comms([cfg.Q_cmd_tUI_to_tIP])
@@ -121,7 +129,7 @@ class ImageParser(cfg.MyThread):
             #     self.transformation_found = False
 
             if not self.camera_started:
-                vs = PiVideoStream(resolution=self.img_size, framerate=30)
+                vs = PiVideoStream(output_size=self.img_size, framerate=30)
                 vs.start()
                 self.camera_started = True
                 while vs.read() is None:
@@ -163,7 +171,7 @@ class ImageParser(cfg.MyThread):
 
                 try:
                     # Find colorful screw image coordinates (anchor points)
-                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=False,
+                    anchor_coords = utl.findAnchorPoints(img=self.image, visualize=cfg.K_visualize_mask,
                                                          low=cfg.K_anchor_lower_color,
                                                          high=cfg.K_anchor_upper_color)
                     # Order the anchor points (TL, TR, BR, BL)
@@ -179,7 +187,7 @@ class ImageParser(cfg.MyThread):
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
                 t1 = time.time()  # TODO Debug
-                self.image = cv.warpPerspective(self.image, self.transform, (1000, 1000))
+                self.image = cv.warpPerspective(self.image, self.transform, self.img_size)
                 transform_time = time.time() - t1   # TODO Debug
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
                 # And, only look for the code once to further avoid time loss
@@ -191,7 +199,7 @@ class ImageParser(cfg.MyThread):
                 # Find the pixel coordinates of the top-left anchor in the image
                 if not self.tl_anchor_found:  # Only look for the anchor if we haven't found it yet
                     try:
-                        anchor_coords = utl.findAnchorPoints(img=self.image, visualize=False,
+                        anchor_coords = utl.findAnchorPoints(img=self.image, visualize=cfg.K_visualize_mask,
                                                              low=cfg.K_anchor_lower_color,
                                                              high=cfg.K_anchor_upper_color)
                         ordered_anchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
@@ -199,12 +207,14 @@ class ImageParser(cfg.MyThread):
                         tl_anchor_pos = ordered_anchors[0]
                         self.tl_anchor_found = True
 
-                    except:  # TODO Bare except clauses are bad, fix this
+                    except Exception as error:  # TODO Bare except clauses are bad, fix this
                         print('Failed to find top-left anchor point position')
+                        print(error)
 
             # Try to find the coords of the laser dot in the image
             t1 = time.time()
-            self.laser_coords = utl.findLaserPoint(img=self.image, visualize=False, threshold=cfg.K_threshold)
+            self.laser_coords = utl.findLaserPoint(img=self.image, visualize=cfg.K_visualize_thresh,
+                                                   threshold=cfg.K_threshold)
             laser_time = time.time() - t1
 
             # Set self.laser_dot_found to True or False based on if we could find it
@@ -253,14 +263,25 @@ class ImageParser(cfg.MyThread):
                 else:
                     cfg.E_PID_parsed_qr_ready.clear()
 
+            if self.visualize_data:
+                utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords)
+            cv.imshow('Camera Feed', self.image)
+
+            # Move the other feeds so they are aligned with the main feed for easy comparison
+            feed_x = cv.getWindowImageRect('Camera Feed')[0] - 2  # These are magic numbers
+            feed_y = cv.getWindowImageRect('Camera Feed')[1] - 30  # These are magic numbers
+            cv.moveWindow('Mask', feed_x, feed_y)
+            cv.moveWindow('Threshold', feed_x, feed_y)
+
+            cv.waitKey(1)
+
             # Logging some basic info about how much time each step takes
             self.loop_time = time.time() - self.t_start
-            try:
-                print(f'trs {round(transform_time, 5)}\t{round(transform_time / self.loop_time, 2)}')
-            except:
-                pass
-            print(f'las {round(laser_time, 5)}\t{round(laser_time / self.loop_time, 2)}')
-            print(f'rot {round(rotate_time, 5)}\t{round(rotate_time / self.loop_time, 2)}')
-            print(f'tot {round(self.loop_time, 5)}')
-            print('-----')
-            # cv.imshow('Camera Feed', self.image)
+            # utl.calc_processing_time('tIP tot', self.loop_time, self.tt_list, 100)
+
+            # try:
+            #     utl.calc_processing_time('tIP trs', transform_time, self.tft_list, 100)
+            # except:
+            #     pass
+            # print(f' las {round(laser_time, 5)}\t{round(laser_time / self.loop_time, 2)}')
+            # print(f' rot {round(rotate_time, 5)}\t{round(rotate_time / self.loop_time, 2)}')
