@@ -62,6 +62,7 @@ class UserInterface(cfg.MyThread):
 
         self.root = tk.Tk()
         self.root.geometry('+850+40')
+        self.root.protocol('WM_DELETE_WINDOW', self.set_stop_events)
 
     # Set up the positions of the basic frames that make up the GUI
         self.F_title_box = tk.Frame(self.root)
@@ -245,16 +246,26 @@ class UserInterface(cfg.MyThread):
 
         pass
 
-    def startAutoAligner(self):
-        # TODO Implement this
-        pass
-
     def doAutoAlign(self):
         # TODO Implement this
         pass
 
+    def set_stop_events(self):
+        """Set events telling all threads to wrap up their business and stop running."""
+        cfg.E_tGK_stopping.set()
+        cfg.E_tIP_stopping.set()
+        cfg.E_tLS_stopping.set()
+        cfg.E_tMC_stopping.set()
+        cfg.E_tUI_stopping.set()
+
+    def stop(self):
+        """Wrap up any remaining business before the thread stops."""
+        print('Stopping the User Interface thread...')
+        self.root.destroy()
+
+
     def update_checkbutton_vars(self):
-        """Update the constants in config.py controlled by checkbuttons on the GUI"""
+        """Update the constants in config.py controlled by checkbuttons on the GUI."""
         cfg.K_visualize_mask = self.vis_mask_bool.get()
         cfg.K_visualize_thresh = self.vis_thresh_bool.get()
 
@@ -269,14 +280,14 @@ class UserInterface(cfg.MyThread):
         with cfg.L_D_parsed_image_data:
             self.D_PID = copy.deepcopy(cfg.D_parsed_image_data)
 
+
+        # TODO This is debug code, delete it when you are done
         self.info_readout_placeholder.configure(text=f'tUI {threading.get_native_id()}\n'
                                                      f'tGK {tGK.native_id}\n'
                                                      f'tIP {tIP.native_id}\n'
                                                      f'tLS {tLS.native_id}\n'
                                                      f'tMC {tMC.native_id}\n'
                                                      f'last {threading.enumerate()[-1].native_id}')
-
-        # TODO This is debug code, delete it when you are done
         thread_list_text = ''
         for i in range(0, threading.active_count()):
             thread_list_text = thread_list_text + str(threading.enumerate()[i]) + '\n'
@@ -293,6 +304,10 @@ class UserInterface(cfg.MyThread):
         # communication replies.
         while True:
             self.my_main_loop()
+
+            if cfg.E_tUI_stopping.is_set():
+                self.stop()
+                break
 
 
 if __name__ == '__main__':

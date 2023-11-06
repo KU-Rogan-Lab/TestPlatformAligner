@@ -23,7 +23,6 @@ class PiVideoStream:
                                                                                                  int(1000000/framerate)),
                                                                          'ExposureTime': 10000})
         self.picam2.configure(camera_config)
-        print(camera_config)
         self.picam2.start()
 
         if autofocus:

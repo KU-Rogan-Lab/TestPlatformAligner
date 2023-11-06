@@ -48,7 +48,8 @@ class ImageParser(cfg.MyThread):
         cv.destroyAllWindows()
 
     def stop(self):
-        """Wrap up the thread's business and stop."""
+        """Wrap up any remaining business before the thread stops."""
+        print('Stopping the Image Parser thread...')
         cv.destroyAllWindows()
 
     def run(self):
@@ -181,14 +182,14 @@ class ImageParser(cfg.MyThread):
                     self.transform = cv.getPerspectiveTransform(untransformed_points, cfg.K_target_points)
                     self.transformation_found = True
 
-                except Exception as error:  # I should not be using bare excepts! TODO Fix this
+                except Exception as error:
                     print('Failed to find the perspective transform')
                     print('Exception:', error)
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
-                t1 = time.time()  # TODO Debug
+                t1 = time.time()  # TODO Debug code
                 self.image = cv.warpPerspective(self.image, self.transform, self.img_size)
-                transform_time = time.time() - t1   # TODO Debug
+                transform_time = time.time() - t1   # TODO Debug code
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
                 # And, only look for the code once to further avoid time loss
                 if self.qr_codes_found == []:
@@ -276,7 +277,7 @@ class ImageParser(cfg.MyThread):
             cv.waitKey(1)
 
             # Logging some basic info about how much time each step takes
-            self.loop_time = time.time() - self.t_start
+            # self.loop_time = time.time() - self.t_start
             # utl.calc_processing_time('tIP tot', self.loop_time, self.tt_list, 100)
 
             # try:
@@ -285,3 +286,7 @@ class ImageParser(cfg.MyThread):
             #     pass
             # print(f' las {round(laser_time, 5)}\t{round(laser_time / self.loop_time, 2)}')
             # print(f' rot {round(rotate_time, 5)}\t{round(rotate_time / self.loop_time, 2)}')
+
+            if cfg.E_tIP_stopping.is_set():
+                self.stop()
+                break

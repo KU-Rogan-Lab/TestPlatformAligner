@@ -82,7 +82,7 @@ Q_cmd_tUI_to_tIP = Queue()
 Q_cmd_tUI_to_tMC = Queue()
 Q_cmd_tUI_to_tLS = Queue()
 
-# These are the hardware control ("hw") queues, used specifically for threads sending hardware commands to tGK
+# Hardware control ("hw") queues, used specifically for threads sending hardware commands to tGK
 Q_hw_tUI_to_tGK = Queue()
 Q_hw_tIP_to_tGK = Queue()
 Q_hw_tMC_to_tGK = Queue()
@@ -99,8 +99,16 @@ E_PID_laser_coords_ready = Event()
 E_PID_emitter_coords_ready = Event()
 E_PID_parsed_qr_ready = Event()
 
+# Events used to tell threads to wrap up their business and stop running
+E_tGK_stopping = Event()
+E_tIP_stopping = Event()
+E_tLS_stopping = Event()
+E_tMC_stopping = Event()
+E_tUI_stopping = Event()
+
 D_parsed_image_data = ParsedImageData()  # The shared data object with the results from tIP's math
 
+# "State" variables, describe the state of the test platform
 S_floodLED_level = ''  # Can be 'Bright', 'Dim', or 'Off'
 S_laser_on = False  # False = laser is off, True = laser is on
 S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope LEDs are on

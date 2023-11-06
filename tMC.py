@@ -19,12 +19,8 @@ class MotorControl(cfg.MyThread):
         cfg.MyThread.__init__(self)
 
     def stop(self):
-        """Handle stopping the thread and wrapping up its business."""
-
-        # # TODO tGK gets motor control, not tMC
-        # self.motors.moveTo(0, 0)
-        # # TODO Instead of this, make it save the motor position on shutdown
-        cv.destroyAllWindows()
+        """Wrap up any remaining business before the thread stops."""
+        print('Stopping the Motor Control thread...')
 
     def run(self):
         """Do the main behavior of the thread."""
@@ -94,3 +90,7 @@ class MotorControl(cfg.MyThread):
             #     armMove = (tIP.pixel2mm_constant * armMoveX, tIP.pixel2mm_constant * armMoveY)
             #
             #     self.motors.moveFor(armMove[0], armMove[1], 0)
+
+            if cfg.E_tMC_stopping.is_set():
+                self.stop()
+                break

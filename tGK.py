@@ -12,12 +12,18 @@ class GateKeeper(cfg.MyThread):
 
         cfg.MyThread.__init__(self)
 
+    def stop(self):
+        """Wrap up any remaining business before the thread stops."""
+        # TODO Save motor position
+        print('Stopping the Gatekeeper thread...')
+
     def run(self):
         # We are assuming that the sensor head is starting at its home position
+        # TODO Load motor position
         self.motors.setHome()
         cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
 
-        while True:
+        while True:  # Main loop
             time.sleep(0.01)
             self.collect_comms([cfg.Q_hw_tIP_to_tGK, cfg.Q_hw_tMC_to_tGK, cfg.Q_hw_tLS_to_tGK, cfg.Q_hw_tUI_to_tGK])
             for comm in self.comm_list:
@@ -96,3 +102,7 @@ class GateKeeper(cfg.MyThread):
 
                 # elif comm.c_type == 'data':  # Handle it like data
                 #     pass
+
+            if cfg.E_tGK_stopping.is_set():
+                self.stop()
+                break
