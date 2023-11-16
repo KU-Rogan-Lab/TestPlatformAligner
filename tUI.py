@@ -1,6 +1,7 @@
 import threading
 import cv2 as cv
 import tkinter as tk
+from tkinter import messagebox
 import copy
 import time
 import os
@@ -48,8 +49,12 @@ class UserInterface(cfg.MyThread):
     def __init__(self):
         """Constructor."""
 
+        # Configure the terminal window's location and size
+        # We do this super early to avoid a (low-stakes) bug where the user clicks on window other than the terminal
+        # before this command can run
+        os.system(f"xdotool getactivewindow windowmove 850 600 windowsize --usehints 128 20")
+
     # THREAD VARIABLES GO HERE
-        self.terminal_WID = int(os.popen('xdotool getactivewindow').readline().strip('\n'))  # Terminal's xdotool WID
         self.D_PID = None  # The local copy of the parsed image data
         self.homeSet = False  # Inherited from old code
         self.sensorsPositions = []  # Inherited from old code
@@ -62,7 +67,7 @@ class UserInterface(cfg.MyThread):
 
         self.root = tk.Tk()
         self.root.geometry('+850+40')
-        self.root.protocol('WM_DELETE_WINDOW', self.set_stop_events)
+        self.root.protocol('WM_DELETE_WINDOW', utl.set_stop_events)
 
     # Set up the positions of the basic frames that make up the GUI
         self.F_title_box = tk.Frame(self.root)
@@ -250,14 +255,6 @@ class UserInterface(cfg.MyThread):
         # TODO Implement this
         pass
 
-    def set_stop_events(self):
-        """Set events telling all threads to wrap up their business and stop running."""
-        cfg.E_tGK_stopping.set()
-        cfg.E_tIP_stopping.set()
-        cfg.E_tLS_stopping.set()
-        cfg.E_tMC_stopping.set()
-        cfg.E_tUI_stopping.set()
-
     def stop(self):
         """Wrap up any remaining business before the thread stops."""
         print('Stopping the User Interface thread...')
@@ -272,14 +269,26 @@ class UserInterface(cfg.MyThread):
     def my_main_loop(self):
         t1 = time.time()
         """Perform the main function of the thread."""
-        # PLACEHOLDER: Collect communications from in-queues (right now tUI has no in-queues)
-        # PLACEHOLDER: Handle commands from other threads
 
-        # PLACEHOLDER: Check that VNC connection is still good, kill program if connection goes down
+        self.collect_comms([cfg.Q_cmd_tIP_to_tUI, cfg.Q_cmd_tGK_to_tUI])
+        for comm in self.comm_list:
+            # TODO Make tGK more than a rubber stamp machine
+            # TODO Make tGK ask tUI to do all of this, because tkinter says all the GUI needs to be in one thread
+            if comm.c_type == 'cmd':  # Handle it like a command
+                if comm.content == 'ShowMessageBox':
+                    # Syntax is a little gnarly, but this shows a
+                    comm.reply = tk.messagebox.Message(self.root, **comm.content_2).show()
+                # PLACEHOLDER: Handle commands here
+                comm.E_reply_set.set()
+
+            # elif comm.c_type == 'data':  # Handle it like data
+            #     pass
+
+        # TODO: Check that VNC connection is still good, kill program if connection goes down
 
         with cfg.L_D_parsed_image_data:
+            # Getting a 'local' copy of the parsed image data helps prevent race conditions and improves modularity
             self.D_PID = copy.deepcopy(cfg.D_parsed_image_data)
-
 
         # TODO This is debug code, delete it when you are done
         self.info_readout_placeholder.configure(text=f'tUI {threading.get_native_id()}\n'
@@ -288,11 +297,11 @@ class UserInterface(cfg.MyThread):
                                                      f'tLS {tLS.native_id}\n'
                                                      f'tMC {tMC.native_id}\n'
                                                      f'last {threading.enumerate()[-1].native_id}')
-        thread_list_text = ''
-        for i in range(0, threading.active_count()):
-            thread_list_text = thread_list_text + str(threading.enumerate()[i]) + '\n'
-        thread_list_text = thread_list_text.strip('\n')
-        self.thread_list_label.configure(text=thread_list_text)
+        # thread_list_text = ''
+        # for i in range(0, threading.active_count()):
+        #     thread_list_text = thread_list_text + str(threading.enumerate()[i]) + '\n'
+        # thread_list_text = thread_list_text.strip('\n')
+        # self.thread_list_label.configure(text=thread_list_text)
 
         # utl.calc_processing_time('tUI tot', time.time() - t1, self.t_tot_list, 100)
         self.root.update_idletasks()
@@ -302,6 +311,7 @@ class UserInterface(cfg.MyThread):
         """Repeatedly run self.my_main_loop()."""
         # We give the main loop function its own function so that we can run the main loop even while waiting for
         # communication replies.
+
         while True:
             self.my_main_loop()
 
@@ -320,8 +330,6 @@ if __name__ == '__main__':
     tUI = UserInterface()
 
     # Start all the threads
-    # tUI.run()
-    # tIP.run()
     tGK.start()
     tIP.start()
     tLS.start()

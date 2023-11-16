@@ -59,31 +59,20 @@ class GateKeeper(cfg.MyThread):
                         comm.reply = 'Granted'
 
                     elif comm.content == 'SetFloodLEDs':
-                        if comm.content_2 == 'Bright':
-                            if not cfg.S_floodLED_level == 'Bright':
-                                # messagebox.showinfo(title='Hardware Control',
-                                #                     message='Please turn the floodlight LEDs on.\n'
-                                #                             'Only close this window when the LEDs have been turned on!')
-                                cfg.S_floodLED_level = 'Bright'
+                        if not comm.content_2 == cfg.S_floodLED_level:
+                            C_LED_control_mbox = cfg.CommObject(c_type='cmd', priority=0, sender='tGK',
+                                                                content='ShowMessageBox',
+                                                                content_2={'title': 'Hardware Control',
+                                                                           'message': 'DEBUG: Manual LED control '
+                                                                                      'needed',
+                                                                           'detail': f'Please set the floodlight LEDs '
+                                                                                     f'to {comm.content_2}. Only '
+                                                                                     f'proceed when done.',
+                                                                           'type': 'ok'})
+                            cfg.Q_cmd_tGK_to_tUI.put(C_LED_control_mbox)
+                            # C_LED_control_mbox.E_reply_set.wait()
+                            cfg.S_floodLED_level = comm.content_2
                             comm.reply = 'Granted'
-
-                        elif comm.content_2 == 'Dim':
-                            if not cfg.S_floodLED_level == 'Dim':
-                                # messagebox.showinfo(title='Hardware Control',
-                                #                     message='Please turn the floodlight LEDs to dim (partially on).\n'
-                                #                             'Only close this window when the LEDs have been set to dim!\n'
-                                #                             '(For now, you can just set them to on)')
-                                cfg.S_floodLED_level = 'Dim'
-                            comm.reply = 'Granted'
-
-                        elif comm.content_2 == 'Off':
-                            if not cfg.S_floodLED_level == 'Off':
-                                # messagebox.showinfo(title='Hardware Control',
-                                #                     message='Please turn the floodlight LEDs off.\n'
-                                #                             'Only close this window when the LEDs have been turned off!')
-                                cfg.S_floodLED_level = 'Off'
-                            comm.reply = 'Granted'
-                            pass
 
                     # TODO Implement laser control of some kind
                     elif comm.content == 'TurnLaserOn':

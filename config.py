@@ -82,6 +82,9 @@ Q_cmd_tUI_to_tIP = Queue()
 Q_cmd_tUI_to_tMC = Queue()
 Q_cmd_tUI_to_tLS = Queue()
 
+Q_cmd_tIP_to_tUI = Queue()
+Q_cmd_tGK_to_tUI = Queue()
+
 # Hardware control ("hw") queues, used specifically for threads sending hardware commands to tGK
 Q_hw_tUI_to_tGK = Queue()
 Q_hw_tIP_to_tGK = Queue()

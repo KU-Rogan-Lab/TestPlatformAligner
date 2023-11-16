@@ -109,7 +109,7 @@ hw:  TurnLaserOn                tells tGK to turn the laser on
 hw:  TurnLaserOff               tells tGK to turn the laser off
 
 cmd: CalculateAlignMove         tells tMC to calculate the motor move required to align the source box
-
+cmd: ShowMessageBox             tells tUI to display a message box (effectively just a wrapper for tkinter.messagebox)
 
 NOTICE BOARD:
 -----------------------------------------------------------------------------------------------

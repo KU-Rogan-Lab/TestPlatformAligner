@@ -137,6 +137,7 @@ def mark_up_image(image, laser_coords, emitter_coords):
     #  Talk to Jack/maybe other people at the lab meeting to figure out if we can just assume the anchor
     #  points will not be moving
 
+
 def calc_processing_time(prefix, time, time_list, pop_size):
     """
     Take the amount of time a processing step took, a list of past times to append to, the max length of that list,
@@ -147,3 +148,12 @@ def calc_processing_time(prefix, time, time_list, pop_size):
     if len(time_list) > pop_size:
         time_list.pop(0)
     print(f'a {prefix}: {round(sum(time_list)/len(time_list),5)}')
+
+
+def set_stop_events():
+    """Set events telling all threads to wrap up their business and stop running."""
+    cfg.E_tGK_stopping.set()
+    cfg.E_tIP_stopping.set()
+    cfg.E_tLS_stopping.set()
+    cfg.E_tMC_stopping.set()
+    cfg.E_tUI_stopping.set()

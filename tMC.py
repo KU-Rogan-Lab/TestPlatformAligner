@@ -34,9 +34,8 @@ class MotorControl(cfg.MyThread):
         cfg.E_PID_pixel2mm_ready.wait()
 
         while True:
-            time.sleep(0.01)  # Keeps it from hogging resources TOO badly. Something of a bandaid
+            time.sleep(0.01)  # Keeps it from hogging resources TOO badly. Something of a band-aid
             # Collect communications from other threads
-            # TODO tMC is basically busy-waiting here, fix this if it causes performance problems
             self.collect_comms([cfg.Q_cmd_tUI_to_tMC])
 
             # Handle all communications

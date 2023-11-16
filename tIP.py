@@ -63,13 +63,22 @@ class ImageParser(cfg.MyThread):
         cv.moveWindow('Camera Feed', 3, 40)
         cv.waitKey(1)
 
-        # todo Let the user click "cancel" to terminate the program
-        # todo Make tIP ask tUI to show this warning, because tkinter needs all the GUI still to be in one thread
         # Ask the user if it is safe to turn the lights and laser on
-        # messagebox.showwarning('Sensor Safety Warning',
-        #                        'When you click "OK", the program will turn on the laser and LED floodlights.\n\n'
-        #                        'Exposure to this light may damage voltage-biased sensors. Please only proceed once it '
-        #                        'is safe to turn the laser and LEDs on.')
+
+        C_startup_safety_mbox = cfg.CommObject(c_type='cmd', priority=0, sender='tIP', content='ShowMessageBox',
+                                               content_2={'title': 'Sensor Safety Warning',
+                                                          'message': 'Warning: Clicking "OK" will turn on the laser '
+                                                                     'and LED floodlights!',
+                                                          'detail': 'Exposure to light may damage biased sensors. '
+                                                                    'Please only proceed when it is safe to do so.',
+                                                          'type': 'okcancel',
+                                                          'icon': 'warning'})
+        cfg.Q_cmd_tIP_to_tUI.put(C_startup_safety_mbox)
+        C_startup_safety_mbox.E_reply_set.wait()
+        if C_startup_safety_mbox.reply == 'cancel':
+            # TODO: This leaves tMC hanging as it waits for image parser data to be ready. Fix this bug.
+            utl.set_stop_events()
+            self.stop()
 
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
