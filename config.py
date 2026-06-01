@@ -1,6 +1,6 @@
 # This is a file that holds all variables and resources that need to be shared between threads.
 # This is mainly the queues and the "notice board" - events, locks, flags, etc.
-# But, this file also contains the shared classes, which is maybe less organized, but it doesn't really matter
+# This file also contains the shared classes, which is maybe less organized, but it doesn't really matter
 
 from threading import Thread, Lock, Event
 from queue import Queue
@@ -112,7 +112,7 @@ E_tUI_stopping = Event()
 D_parsed_image_data = ParsedImageData()  # The shared data object with the results from tIP's math
 
 # "State" variables, describe the state of the test platform
-S_floodLED_level = ''  # Can be 'Bright', 'Dim', or 'Off'
+S_floodLED_level = 0.0  # Number from 0 to 1, with 1 being max brightness
 S_laser_on = False  # False = laser is off, True = laser is on
 S_microscopeLED_on = False  # False = microscope LEDs are off, True = microscope LEDs are on
 
@@ -146,7 +146,8 @@ K_emitter_y_offset = int(-18.5 * K_pixel2mm_constant ** -1)
 K_sensor_x_offset = int(15 * K_pixel2mm_constant ** -1)
 K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
 
-K_threshold = 230  # The threshold used when thresholding the image to look for the laser dot
+K_threshold = 20  # The threshold used when thresholding the image to look for the laser dot
+# TODO: Raise this back up to ~200 after replacing the laser diode
 
 # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used
 K_anchor_lower_color = np.array([60, 25, 45])  # Lower bound of the color of the anchors (HSV format)

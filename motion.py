@@ -17,7 +17,7 @@ class motion:
             self.ser = serial.Serial(port=port, baudrate=115200, timeout=timeout)
             self.ser.readline()
         self.motors = ['X', 'Y']
-        self.scale = {'X': 1, 'Y' : 1, 'Z': 1}
+        self.scale = {'X': 1, 'Y': 1, 'Z': 1}
         self.timeout = timeout
 
         self.maxLimit = {'X': None, 'Y' : None, 'Z': None}
@@ -47,8 +47,8 @@ class motion:
 
     def moveTo(self, x=0, y=0, z=0, returnImmediately=True):
         """
-			Sends to chick to the wanted position
-			Returns the final position
+                Sends to chick to the wanted position
+                Returns the final position
         """
         self.commandIndex = (self.commandIndex+1)%10;
         command = f'g {x + self.softHome[0]} {y + self.softHome[1]}'

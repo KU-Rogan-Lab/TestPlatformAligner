@@ -15,7 +15,7 @@ class ImageParser(cfg.MyThread):
 
         self.img_size = img_size
         self.frame_rate = frame_rate
-        self.visualize_data = visualize_data  # todo This should belong to tUI once it is tUI marking up frames
+        self.visualize_data = visualize_data
 
         self.camera_started = True
 
@@ -84,7 +84,7 @@ class ImageParser(cfg.MyThread):
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
             C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                 content='SetFloodLEDs', content_2='Bright')
+                                                 content='SetFloodLEDs', content_2=1)
             cfg.Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
@@ -131,10 +131,6 @@ class ImageParser(cfg.MyThread):
                     comm.E_reply_set.set()
 
             # TODO Remove these old-style commands once they are no longer needed
-            # if cv.waitKey(1) & 0xFF == ord('q'):
-            #     self.stop()
-            #     exit()
-            #
             # if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
             #     self.transformation_found = False
 
@@ -150,13 +146,13 @@ class ImageParser(cfg.MyThread):
             with cfg.L_floodLED_brightness:  # Using the lock to keep brightness the same while we take a picture
                 if not self.transformation_found:  # Floodlight LEDs bright to better find screws (transform points)
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                            content='SetFloodLEDs', content_2='Bright')
+                                                            content='SetFloodLEDs', content_2=1.0)
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                            content='SetFloodLEDs', content_2='Dim')
+                                                            content='SetFloodLEDs', content_2=0.3)
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
@@ -196,9 +192,9 @@ class ImageParser(cfg.MyThread):
                     print('Exception:', error)
 
             if self.transformation_found:  # This needs to stay as an if, not an elif
-                t1 = time.time()  # TODO Debug code
+                t1 = time.time()  # TODO This is debug code
                 self.image = cv.warpPerspective(self.image, self.transform, self.img_size)
-                transform_time = time.time() - t1   # TODO Debug code
+                transform_time = time.time() - t1   # TODO This is debug code
                 # Only look for QR codes after finding transform to avoid wasting time looking for super warped codes
                 # And, only look for the code once to further avoid time loss
                 if self.qr_codes_found == []:
@@ -222,10 +218,10 @@ class ImageParser(cfg.MyThread):
                         print(error)
 
             # Try to find the coords of the laser dot in the image
-            t1 = time.time()
+            t1 = time.time()  # TODO This is debug code
             self.laser_coords = utl.findLaserPoint(img=self.image, visualize=cfg.K_visualize_thresh,
                                                    threshold=cfg.K_threshold)
-            laser_time = time.time() - t1
+            laser_time = time.time() - t1  # TODO This is debug code
 
             # Set self.laser_dot_found to True or False based on if we could find it
             if self.laser_coords == (-1, -1):  # utl.findLaserPoint returning (-1,-1) indicates that it found nothing
@@ -277,7 +273,7 @@ class ImageParser(cfg.MyThread):
                 utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords)
             cv.imshow('Camera Feed', self.image)
 
-            # Move the other feeds so they are aligned with the main feed for easy comparison
+            # Move the other feeds so that they are aligned with the main feed for easy comparison
             feed_x = cv.getWindowImageRect('Camera Feed')[0] - 2  # These are magic numbers
             feed_y = cv.getWindowImageRect('Camera Feed')[1] - 30  # These are magic numbers
             cv.moveWindow('Mask', feed_x, feed_y)

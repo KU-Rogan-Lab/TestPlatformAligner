@@ -1,5 +1,5 @@
 # This is a modified version of the pivideostream.py module in the imutils package, written by Aidan Novo specifically
-# for the KU Rogan Lab Test Platform Aligner Project.
+# for the KU Rogan Lab's Test Platform Aligner Project.
 #
 # Specifically, it has been modified to better work with the ArduCam IMX519 Autofocus Camera which is being used on the
 # test platform.

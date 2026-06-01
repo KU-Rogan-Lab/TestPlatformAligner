@@ -1,5 +1,8 @@
 import config as cfg
 import motion
+import os
+from gpiozero import PWMOutputDevice, Device
+from gpiozero.pins.pigpio import PiGPIOFactory
 from tkinter import messagebox
 import time
 
@@ -7,7 +10,10 @@ import time
 class GateKeeper(cfg.MyThread):
     def __init__(self):
         """Constructor."""
+
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
+        Device.pin_factory = PiGPIOFactory()  # Change the pin factory to be pigpio which bypasses thread limits
+        self.floodLED_pin = PWMOutputDevice('GPIO12', frequency=2000)
         self.homeSet = False  # Inherited from old code
 
         cfg.MyThread.__init__(self)
@@ -60,16 +66,22 @@ class GateKeeper(cfg.MyThread):
 
                     elif comm.content == 'SetFloodLEDs':
                         if not comm.content_2 == cfg.S_floodLED_level:
-                            C_LED_control_mbox = cfg.CommObject(c_type='cmd', priority=0, sender='tGK',
-                                                                content='ShowMessageBox',
-                                                                content_2={'title': 'Hardware Control',
-                                                                           'message': 'DEBUG: Manual LED control '
-                                                                                      'needed',
-                                                                           'detail': f'Please set the floodlight LEDs '
-                                                                                     f'to {comm.content_2}. Only '
-                                                                                     f'proceed when done.',
-                                                                           'type': 'ok'})
-                            cfg.Q_cmd_tGK_to_tUI.put(C_LED_control_mbox)
+
+                            # Set GPIO pin 12 to high
+                            # TODO: Make this check if it is safe somehow
+                            print('Floodlight LEDs set to: ', comm.content_2, '')
+                            self.floodLED_pin.value = comm.content_2
+
+                            # C_LED_control_mbox = cfg.CommObject(c_type='cmd', priority=0, sender='tGK',
+                            #                                     content='ShowMessageBox',
+                            #                                     content_2={'title': 'Hardware Control',
+                            #                                                'message': 'DEBUG: Manual LED control '
+                            #                                                           'needed',
+                            #                                                'detail': f'Please set the floodlight LEDs '
+                            #                                                          f'to {comm.content_2}. Only '
+                            #                                                          f'proceed when done.',
+                            #                                                'type': 'ok'})
+                            # cfg.Q_cmd_tGK_to_tUI.put(C_LED_control_mbox)
                             # C_LED_control_mbox.E_reply_set.wait()
                             cfg.S_floodLED_level = comm.content_2
                             comm.reply = 'Granted'
