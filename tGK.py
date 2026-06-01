@@ -21,6 +21,9 @@ class GateKeeper(cfg.MyThread):
     def stop(self):
         """Wrap up any remaining business before the thread stops."""
         # TODO Save motor position
+        # Turn off floodlights
+        self.floodLED_pin.value = 0
+        cfg.S_floodLED_level = 0
         print('Stopping the Gatekeeper thread...')
 
     def run(self):
