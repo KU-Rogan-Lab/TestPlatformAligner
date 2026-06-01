@@ -146,7 +146,7 @@ K_emitter_y_offset = int(-18.5 * K_pixel2mm_constant ** -1)
 K_sensor_x_offset = int(15 * K_pixel2mm_constant ** -1)
 K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
 
-K_threshold = 20  # The threshold used when thresholding the image to look for the laser dot
+K_threshold = 60  # The threshold used when thresholding the image to look for the laser dot
 # TODO: Raise this back up to ~200 after replacing the laser diode
 
 # These color boundaries will need to be fine-tuned for the specific anchors and lighting being used

@@ -152,7 +152,7 @@ class ImageParser(cfg.MyThread):
 
                 elif self.transformation_found:  # Floodlight LEDs dim for better laser finding
                     C_lights_on_for_screws = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                            content='SetFloodLEDs', content_2=0.3)
+                                                            content='SetFloodLEDs', content_2=0.02)
                     cfg.Q_hw_tIP_to_tGK.put(C_lights_on_for_screws)
                     pass
 
@@ -270,6 +270,7 @@ class ImageParser(cfg.MyThread):
                     cfg.E_PID_parsed_qr_ready.clear()
 
             if self.visualize_data:
+                # print(f'laser_coords: {self.laser_coords}')
                 utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords)
             cv.imshow('Camera Feed', self.image)
 
