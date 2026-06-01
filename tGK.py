@@ -1,7 +1,7 @@
 import config as cfg
 import motion
 import os
-from gpiozero import PWMOutputDevice, Device
+from gpiozero import PWMOutputDevice, DigitalOutputDevice, Device
 from gpiozero.pins.pigpio import PiGPIOFactory
 from tkinter import messagebox
 import time
@@ -13,7 +13,9 @@ class GateKeeper(cfg.MyThread):
 
         self.motors = motion.motion(port='/dev/ttyACM0', emulate=False)
         Device.pin_factory = PiGPIOFactory()  # Change the pin factory to be pigpio which bypasses thread limits
+
         self.floodLED_pin = PWMOutputDevice('GPIO12', frequency=2000)
+        self.laser_pin = DigitalOutputDevice('GPIO16')
         self.homeSet = False  # Inherited from old code
 
         cfg.MyThread.__init__(self)
@@ -24,6 +26,11 @@ class GateKeeper(cfg.MyThread):
         # Turn off floodlights
         self.floodLED_pin.value = 0
         cfg.S_floodLED_level = 0
+
+        # Turn off laser
+        self.laser_pin.off()
+        cfg.S_laser_on = False
+
         print('Stopping the Gatekeeper thread...')
 
     def run(self):
@@ -70,35 +77,26 @@ class GateKeeper(cfg.MyThread):
                     elif comm.content == 'SetFloodLEDs':
                         if not comm.content_2 == cfg.S_floodLED_level:
 
-                            # Set GPIO pin 12 to high
+                            # Set GPIO pin 12
                             # TODO: Make this check if it is safe somehow
                             print('Floodlight LEDs set to: ', comm.content_2, '')
                             self.floodLED_pin.value = comm.content_2
 
-                            # C_LED_control_mbox = cfg.CommObject(c_type='cmd', priority=0, sender='tGK',
-                            #                                     content='ShowMessageBox',
-                            #                                     content_2={'title': 'Hardware Control',
-                            #                                                'message': 'DEBUG: Manual LED control '
-                            #                                                           'needed',
-                            #                                                'detail': f'Please set the floodlight LEDs '
-                            #                                                          f'to {comm.content_2}. Only '
-                            #                                                          f'proceed when done.',
-                            #                                                'type': 'ok'})
-                            # cfg.Q_cmd_tGK_to_tUI.put(C_LED_control_mbox)
-                            # C_LED_control_mbox.E_reply_set.wait()
                             cfg.S_floodLED_level = comm.content_2
                             comm.reply = 'Granted'
 
                     # TODO Implement laser control of some kind
                     elif comm.content == 'TurnLaserOn':
-                        # PLACEHOLDER: Turn the laser on
+                        # Turn the laser on
+                        self.laser_pin.on()
                         cfg.S_laser_on = True
                         comm.reply = 'Granted'
                         pass
 
                     elif comm.content == 'TurnLaserOff':
-                        # PLACEHOLDER: Turn the laser off
+                        # Turn the laser off
                         cfg.S_laser_on = False
+                        self.laser_pin.off()
                         comm.reply = 'Granted'
                         pass
 
