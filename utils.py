@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import pyzbar.pyzbar as pyzbar
 import config as cfg
+import datetime
 
 
 # A function to search an image for QR codes and return the decoded codes
@@ -27,19 +28,22 @@ def findAnchorPoints(img, visualize, low, high):
     contour_list = list(contours)  # contours is a tuple, which we cannot modify
 
     if visualize:
-        print('hello')
         imageMask = cv.bitwise_and(img, img, mask=mask)
         cv.drawContours(imageMask, contour_list, -1, (0, 0, 255), 1)
         cv.imshow('Mask', imageMask)
-        print('hi')
         cv.waitKey(15)
 
     if len(contour_list) != 4:  # May need to add a loop where we attempt to fix the contour number
         print(f'Wrong number of anchor point contours! ({len(contour_list)} contours, should be 4). Attempting to fix...')
-        contour_list[:] = [c for c in contour_list if 200*cfg.K_ratio < cv.moments(c)["m00"] < 500*cfg.K_ratio]
+        # for c in contour_list:
+        #     if cv.moments(c)['m00'] > 4*cfg.K_ratio:
+        #         print(cv.moments(c)['m00'])
+        contour_list[:] = [c for c in contour_list if 200*cfg.K_ratio < cv.moments(c)["m00"] < 700*cfg.K_ratio]
+
 
         if len(contour_list) != 4:
             print(f'Wrong number of contours after fix! ({len(contour_list)} contours, should be 4)')
+
         else:
             print('Successfully fixed contour number!')
 
@@ -55,10 +59,11 @@ def findAnchorPoints(img, visualize, low, high):
 
 
 # A function to return the coordinates of the center of the laser pointer dot in an image
-def findLaserPoint(img, visualize, threshold): 
+def findLaserPoint(img, visualize, threshold):
     imageGray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     ret, imageThresh = cv.threshold(imageGray, threshold, 255, cv.THRESH_TOZERO)
     contours, _ = cv.findContours(imageThresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    contour_list = list(contours)
     (cX, cY) = (-1, -1)  # Initializing these to unreachable coords
 
     # Converting back to color so the contours can be drawn on in color afterwards
@@ -69,34 +74,43 @@ def findLaserPoint(img, visualize, threshold):
         cv.imshow('Threshold', imageCont)
         cv.waitKey(1)
 
-    # May need to add a loop where we try to fix the contour number
+    # for c in contour_list:
+    #     print(cv.moments(c)['m00'])
 
-    if len(contours) != 1:
-        print(f'Wrong number of laser dot contours! ({len(contours)} contours, should be 1)')
+    # Cut contours which are too big or too small
+    contour_list[:] = [c for c in contour_list if 0 * cfg.K_ratio < cv.moments(c)["m00"] < 120 * cfg.K_ratio]
 
-    for c in contours:
-        M = cv.moments(c)
-        if 0 < M["m00"] < 10*cfg.K_ratio:  # The laser dot contour won't be too big or small
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
+    if len(contour_list) != 1:
+        print(f'Wrong number of potential laser dot contours! ({len(contour_list)} contours, should be 1)')
 
-    # Note that if this returns (-1, -1), it has failed to find anything
+    elif len(contour_list) == 1:
+        M = cv.moments(contour_list[0])
+        cX = int(M['m10'] / M['m00'])
+        cY = int(M['m01'] / M['m00'])
+
+    # Note that if this returns (-1, -1), it has either failed to find anything or found too many contours
     return (cX, cY)
+
+    # TODO: There are more intelligent ways we can find the laser point, but they are not currently needed.
+    #  Options for improvement:
+    #  - Consider color of the laser dot
+    #  - Turn laser off and on and check difference
+    #  - Rigorously find the laser dot, then look only in an area near it (update window for motor moves)
         
 
 # This is a modified version of imutils's perspective.order_points() function which avoids a bug
 # that was caused by extreme perspective foreshortening
 def orderAnchorPoints(pts):
 
-    # sort the points based on their x-coordinates
+    # Sort the points based on their x-coordinates
     xSorted = pts[np.argsort(pts[:, 0]), :]
 
-    # grab the left-most and right-most points from the sorted
-    # x-roodinate points
+    # Grab the left-most and right-most points from the sorted
+    # x-coordinate points
     leftMost = xSorted[:2, :]
     rightMost = xSorted[2:, :]
 
-    # now, sort the left-most coordinates according to their
+    # Now, sort the left-most coordinates according to their
     # y-coordinates so we can grab the top-left and bottom-left
     # points, respectively
     leftMost = leftMost[np.argsort(leftMost[:, 1]), :]
@@ -105,28 +119,54 @@ def orderAnchorPoints(pts):
     # This is the modified bit. Sort the right-most coords by y coordinate, just like the left-most coords
     rightMost = rightMost[np.argsort(rightMost[:, 1]), :]
     (tr, br) = rightMost
-    # return the coordinates in top-left, top-right,
+    # Return the coordinates in top-left, top-right,
     # bottom-right, and bottom-left order
     return np.array([tl, tr, br, bl], dtype="float32")
 
 
-def mark_up_image(image, laser_coords, emitter_coords):
+def mark_up_image(image, laser_coords, emitter_coords, tl_anchor_coords):
     """
-    Return a version of the image marked upto visualize various data.
+    Return a version of the image marked up to visualize various data.
     e.g. marking the positions of the laser dot, emitter slit, adding a mm scale reference, etc.
     """
-    if cfg.E_PID_laser_coords_ready.is_set():
-        cv.putText(image,
-                   f'. Laser Dot ({laser_coords[0]}, {laser_coords[1]})',
-                   laser_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
-        cv.putText(image,
-                   f'. Emitter Slit ({emitter_coords[0]}, {emitter_coords[1]})',
-                   emitter_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
 
-    scaleSquareCoord = int(10 + 10 * (cfg.K_pixel2mm_constant ** -1))
-    cv.rectangle(image, (10, 10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 2)
+    if cfg.E_PID_laser_coords_ready.is_set():
+
+        # Mark the laser dot position
+        cv.circle(image, laser_coords, 2, (255, 200, 50), -1)
+        cv.putText(image,
+                   f' Laser Dot ({laser_coords[0]}, {laser_coords[1]})',
+                   laser_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 1)
+
+        # Mark the emitter slit position
+        cv.circle(image, emitter_coords, 2, (255, 200, 50), -1)
+        emitter_rect_coords = [(round(emitter_coords[0] - 2 / cfg.K_pixel2mm_constant),
+                                round(emitter_coords[1] - 15 / cfg.K_pixel2mm_constant)),
+                               (round(emitter_coords[0] + 2 / cfg.K_pixel2mm_constant),
+                                round(emitter_coords[1] + 15 / cfg.K_pixel2mm_constant))]
+        cv.rectangle(image, emitter_rect_coords[0], emitter_rect_coords[1], (255, 200, 50), 1)
+        cv.putText(image,
+                   f' Emitter Slit ({emitter_coords[0]}, {emitter_coords[1]})',
+                   emitter_coords, cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 1)
+
+
+    if cfg.E_PID_tl_anchor_coord_ready.is_set():
+        # Mark the sensor target position
+        sensor_target_coords = (round(tl_anchor_coords[0] + cfg.K_sensor_x_offset),
+                                round(tl_anchor_coords[1] + cfg.K_sensor_y_offset))
+        cv.circle(image, sensor_target_coords, 2, (255, 50, 200), -1)
+        cv.putText(image,
+                   f' Sensor Target ({sensor_target_coords[0]}, {sensor_target_coords[1]})',
+                   (sensor_target_coords[0], sensor_target_coords[1] + 15), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 50, 200), 1)
+
+    scaleSquareCoord = int(10 + 10 / cfg.K_pixel2mm_constant)
+    cv.rectangle(image, (10, 10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 1)
     cv.putText(image, '10 mm', (scaleSquareCoord + 5, scaleSquareCoord),
-               cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 2)
+               cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 1)
+
+    cv.putText(image,
+               f'{datetime.datetime.now()}',
+               (10, cfg.K_image_size[1] - 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 1)
 
     # a = self.transform.dot((anchor_coords[0][0], anchor_coords[0][1], 1))
     # a /= a[2]
@@ -135,7 +175,7 @@ def mark_up_image(image, laser_coords, emitter_coords):
     # TODO: This above bit works, but because the anchor points never get updated, it will always just
     #  output [350,650,1] for a. And really, the code is not written to ever update the anchor points.
     #  Talk to Jack/maybe other people at the lab meeting to figure out if we can just assume the anchor
-    #  points will not be moving
+    #  points will not be moving.
 
 
 def calc_processing_time(prefix, time, time_list, pop_size):

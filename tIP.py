@@ -21,6 +21,7 @@ class ImageParser(cfg.MyThread):
 
         self.laser_coords = (-1, -1)
         self.emitter_coords = (-1, -1)
+        self.tl_anchor_coords = (-1, -1)
 
         self.transformation_found = False
         self.laser_dot_found = False
@@ -83,8 +84,7 @@ class ImageParser(cfg.MyThread):
         # Ask tGK to turn on the lights and laser
         while True:  # This is in a while True block so that we can try again if our first requests are denied
             # Ask tGK to turn on the lights
-            C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP',
-                                                 content='SetFloodLEDs', content_2=1)
+            C_startup_lights_on = cfg.CommObject(c_type='hw', priority=1, sender='tIP', content='SetFloodLEDs', content_2=1)
             cfg.Q_hw_tIP_to_tGK.put(C_startup_lights_on)
 
             # Ask tGK to turn on the laser
@@ -96,8 +96,7 @@ class ImageParser(cfg.MyThread):
             C_startup_laser_on.E_reply_set.wait()
 
             # Only continue once our request to turn on the lights and laser is granted
-            if C_startup_lights_on.reply == 'Granted' and \
-                    C_startup_lights_on.reply == 'Granted':
+            if C_startup_lights_on.reply == 'Granted' and C_startup_lights_on.reply == 'Granted':
                 break
 
         # Wait for tMC to say that the source box is out of the way before we turn on the camera
@@ -111,8 +110,6 @@ class ImageParser(cfg.MyThread):
             print('camera not available... ')
             print(vs.read())
             time.sleep(1)
-
-        print("Press 'q' to close\nPress 't' to correct perspective")  # TODO Remove from final version
 
         while True:  # Main loop
             self.t_start = time.time()  # TODO This is debug code, remove when done
@@ -129,10 +126,6 @@ class ImageParser(cfg.MyThread):
                     # PLACEHOLDER: Handle other commands
                     comm.reply = 'DEBUG:CommunicationSeen'
                     comm.E_reply_set.set()
-
-            # TODO Remove these old-style commands once they are no longer needed
-            # if cv.waitKey(30) & 0xFF == ord('t'):  # Tells it to re-calculate the perspective transform
-            #     self.transformation_found = False
 
             if not self.camera_started:
                 vs = PiVideoStream(output_size=self.img_size, framerate=30)
@@ -159,9 +152,9 @@ class ImageParser(cfg.MyThread):
                 self.image = vs.read()
 
             # Rotate image to be right-side up
-            t1 = time.time()
+            # t1 = time.time()
             # self.image = cv.rotate(self.image, cv.ROTATE_90_COUNTERCLOCKWISE)
-            rotate_time = time.time() - t1
+            # rotate_time = time.time() - t1
 
             # Try again if the image is all black
             if np.max(self.image) == 0:
@@ -210,7 +203,7 @@ class ImageParser(cfg.MyThread):
                                                              high=cfg.K_anchor_upper_color)
                         ordered_anchors = utl.orderAnchorPoints(np.array([anchor_coords[0], anchor_coords[1],
                                                                          anchor_coords[2], anchor_coords[3]]))
-                        tl_anchor_pos = ordered_anchors[0]
+                        self.tl_anchor_coords = ordered_anchors[0]
                         self.tl_anchor_found = True
 
                     except Exception as error:  # TODO Bare except clauses are bad, fix this
@@ -218,12 +211,12 @@ class ImageParser(cfg.MyThread):
                         print(error)
 
             # Try to find the coords of the laser dot in the image
-            t1 = time.time()  # TODO This is debug code
+            # t1 = time.time()  # TODO This is debug code
             self.laser_coords = utl.findLaserPoint(img=self.image, visualize=cfg.K_visualize_thresh,
                                                    threshold=cfg.K_threshold)
-            laser_time = time.time() - t1  # TODO This is debug code
+            # laser_time = time.time() - t1  # TODO This is debug code
 
-            # Set self.laser_dot_found to True or False based on if we could find it
+            # Set self. laser_dot_found to True or False based on if we could find it
             if self.laser_coords == (-1, -1):  # utl.findLaserPoint returning (-1,-1) indicates that it found nothing
                 self.laser_dot_found = False
                 # PLACEHOLDER: Try wiggling the motor
@@ -249,7 +242,7 @@ class ImageParser(cfg.MyThread):
                     cfg.E_PID_transform_ready.clear()
 
                 if self.tl_anchor_found:
-                    cfg.D_parsed_image_data.tl_anchor_coord = tl_anchor_pos  # TODO Make this a self. variable
+                    cfg.D_parsed_image_data.tl_anchor_coord = self.tl_anchor_coords  # TODO Make this a self. variable
                     cfg.E_PID_tl_anchor_coord_ready.set()
                 else:
                     cfg.E_PID_tl_anchor_coord_ready.clear()
@@ -271,7 +264,7 @@ class ImageParser(cfg.MyThread):
 
             if self.visualize_data:
                 # print(f'laser_coords: {self.laser_coords}')
-                utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords)
+                utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords, self.tl_anchor_coords)
             cv.imshow('Camera Feed', self.image)
 
             # Move the other feeds so that they are aligned with the main feed for easy comparison

@@ -41,8 +41,7 @@ class MotorControl(cfg.MyThread):
             # Handle all communications
             for comm in self.comm_list:
                 if comm.c_type == 'cmd':  # Handle it like a command
-
-                    if comm.content == 'CalculateAlignMove':
+                    if comm.content == 'DoAutoAlign':
                         # Calculate the motor move needed to align the box w/ the sensor, then return it in comm.reply
                         # TODO Make this more robustly calculate a 'safe' arm move
                         #  i.e. Stays within motion bounds, doesn't sweep the laser over the sensor, etc.
@@ -53,12 +52,18 @@ class MotorControl(cfg.MyThread):
                         self.avg_tl_anchor_pos = self.D_parsed_image_data.tl_anchor_coord
 
                         # Multiply by -1 for armMoveX because camera and motors have opposite x-axis directions
-                        armMoveX = (self.avg_tl_anchor_pos[0] + 102 - self.avg_laser_pos[0]) * -1
-                        armMoveY = (self.avg_tl_anchor_pos[1] + 102 - self.avg_laser_pos[1])
+                        armMoveX = (self.avg_tl_anchor_pos[0] + cfg.K_sensor_x_offset - self.avg_laser_pos[0]) * -1
+                        armMoveY = (self.avg_tl_anchor_pos[1] + cfg.K_sensor_y_offset - self.avg_laser_pos[1])
 
-                        armMove = (cfg.K_pixel2mm_constant * armMoveX, cfg.K_pixel2mm_constant * armMoveY)
+                        # The 1 in index zero is the step size, for compatibility with MotorControl command structure
+                        armMove = (1, cfg.K_pixel2mm_constant * armMoveX, cfg.K_pixel2mm_constant * armMoveY)
 
-                        comm.reply = armMove  # Send the calculated arm move back to the requesting thread
+                        C_autoalign_move = cfg.CommObject(c_type='hw', priority=3, sender='tMC',
+                                                          content='MotorControl', content_2=armMove)
+                        print(C_autoalign_move)
+                        cfg.Q_hw_tMC_to_tGK.put(C_autoalign_move)
+
+                        comm.reply = 'Granted'  # Send the calculated arm move back to the requesting thread
 
                     else:
                         comm.reply = 'DEBUG:CommunicationSeen'

@@ -21,7 +21,7 @@ class CommObject:
         self.E_reply_set = Event()  # An event to let the source thread know the reply has been set
 
     def __repr__(self):
-        return (f'CommObject(c_type={self.c_type}, priority={self.priority}, content={self.content},'
+        return (f'CommObject(c_type={self.c_type}, priority={self.priority}, content={self.content}, '
                 f'content_2={self.content_2}, reply={self.reply})')
 
 
@@ -122,7 +122,7 @@ L_move_button_command = Lock()  # Lock used to prevent new move button commands 
 L_D_parsed_image_data = Lock()  # Lock used to protect D_PID
 
 # ----------------------------------- CONSTANTS GO BELOW HERE -----------------------------------
-K_version_number = '0.2.0'
+K_version_number = '0.4.1'
 
 # The target points for the image transform, which represent the "true" dimensions of the anchors in pixels.
 # They MUST be in (TL, TR, BR, BL) order, and they MUST keep to the same aspect ratio as K_true_anchor_dimensions
@@ -137,14 +137,15 @@ K_pixel2mm_constant = K_true_anchor_dimensions[0] / (K_target_points[1][0] - K_t
 
 # The x and y pixel offsets to get from the position of the laser dot to the position of the emitter slit
 # Given as [mm distance] * K_pixel2mm_constant**-1
-K_emitter_x_offset = int(-98 * K_pixel2mm_constant ** -1)
-K_emitter_y_offset = int(-18.5 * K_pixel2mm_constant ** -1)
+# Measured with calipers on 6/3/26
+K_emitter_x_offset = int(-100 * K_pixel2mm_constant ** -1)
+K_emitter_y_offset = int(-20 * K_pixel2mm_constant ** -1)
 
 # The x and y pixel offsets to get from the position of some anchor point (which one is defined below) to
 # the position of the sensor.
 # Given as [mm distance] * K_pixel2mm_constant ** -1
-K_sensor_x_offset = int(15 * K_pixel2mm_constant ** -1)
-K_sensor_y_offset = int(25 * K_pixel2mm_constant ** -1)
+K_sensor_x_offset = int(49 * K_pixel2mm_constant ** -1)
+K_sensor_y_offset = int(49 * K_pixel2mm_constant ** -1)
 
 K_threshold = 60  # The threshold used when thresholding the image to look for the laser dot
 # TODO: Raise this back up to ~200 after replacing the laser diode

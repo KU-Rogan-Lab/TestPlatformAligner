@@ -93,6 +93,7 @@ Current accepted replies:
 - 'DEBUG:CommunicationSeen' - Your communication has been seen
 - 'DEBUG:HardwareRequestSeen' - Your hardware request has been seen
 - 'Granted' - Your request has been granted
+- 'Denied' - Your request has been generically denied
 
 
 COMMANDS/HARDWARE REQUEST LIST:
@@ -105,7 +106,7 @@ hw:  SetFloodLEDs               tells tGK to set the floodlight LEDs to the brig
 hw:  TurnLaserOn                tells tGK to turn the laser on
 hw:  TurnLaserOff               tells tGK to turn the laser off
 
-cmd: CalculateAlignMove         tells tMC to calculate the motor move required to align the source box
+cmd: DoAutoAlign                tells tMC to calculate the motor move needed to align the source, then ask tGK to do it
 cmd: ShowMessageBox             tells tUI to display a message box (effectively just a wrapper for tkinter.messagebox)
 
 NOTICE BOARD:

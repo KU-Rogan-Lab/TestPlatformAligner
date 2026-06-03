@@ -23,6 +23,8 @@ class GateKeeper(cfg.MyThread):
     def stop(self):
         """Wrap up any remaining business before the thread stops."""
         # TODO Save motor position
+        self.motors.goHome()
+
         # Turn off floodlights
         self.floodLED_pin.value = 0
         cfg.S_floodLED_level = 0
@@ -37,6 +39,7 @@ class GateKeeper(cfg.MyThread):
         # We are assuming that the sensor head is starting at its home position
         # TODO Load motor position
         self.motors.setHome()
+        self.homeSet = True
         cfg.E_SB_not_obscuring.set()  # Tell tIP the source box is out of the way
 
         while True:  # Main loop
@@ -44,7 +47,6 @@ class GateKeeper(cfg.MyThread):
             self.collect_comms([cfg.Q_hw_tIP_to_tGK, cfg.Q_hw_tMC_to_tGK, cfg.Q_hw_tLS_to_tGK, cfg.Q_hw_tUI_to_tGK])
             for comm in self.comm_list:
                 # TODO Make tGK more than a rubber stamp machine
-                # TODO Make tGK ask tUI to do all of this, because tkinter says all the GUI needs to be in one thread
                 if comm.c_type == 'cmd':  # Handle it like a command
                     comm.reply = 'DEBUG:CommunicationSeen'
                     # PLACEHOLDER: Handle commands here
@@ -68,11 +70,21 @@ class GateKeeper(cfg.MyThread):
 
                     elif comm.content == 'MotorsToPosition':
                         if self.homeSet:
+                            # print('tGK has recieved a request to move to: ', comm.content_2, '')
                             positionX, positionY = comm.content_2
                             self.motors.moveTo(positionX, positionY)
+                            comm.reply = 'Granted'
+
                         else:
-                            messagebox.showerror("Home not Set!", "Set home first!")
-                        comm.reply = 'Granted'
+                            cfg.CommObject(c_type='cmd', priority=0, sender='tGK', content='ShowMessageBox',
+                                           content_2={'title': 'Error',
+                                                      'message': 'Home not set!',
+                                                      'detail': 'Please set home position before proceeding.',
+                                                      'type': 'ok',
+                                                      'icon': 'warning'})
+                            comm.reply = 'Denied'
+                            # messagebox.showerror("Home not Set!", "Set home first!")
+
 
                     elif comm.content == 'SetFloodLEDs':
                         if not comm.content_2 == cfg.S_floodLED_level:

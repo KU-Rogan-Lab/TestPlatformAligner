@@ -252,8 +252,20 @@ class UserInterface(cfg.MyThread):
         pass
 
     def doAutoAlign(self):
-        # TODO Implement this
-        pass
+        C_autoalign_button_input = cfg.CommObject(c_type='cmd', priority=3, sender='tUI', content='DoAutoAlign')
+        cfg.Q_cmd_tUI_to_tMC.put(C_autoalign_button_input)
+
+        while True:
+            self.my_main_loop()
+            if C_autoalign_button_input.E_reply_set.is_set():
+                break
+
+        if C_autoalign_button_input.reply == 'Granted':
+            print('Motor control has accepted the auto-alignment request.')
+
+        else:
+            print('Motor control has not accepted the auto-alignment request.')
+
 
     def stop(self):
         """Wrap up any remaining business before the thread stops."""
@@ -272,8 +284,6 @@ class UserInterface(cfg.MyThread):
 
         self.collect_comms([cfg.Q_cmd_tIP_to_tUI, cfg.Q_cmd_tGK_to_tUI])
         for comm in self.comm_list:
-            # TODO Make tGK more than a rubber stamp machine
-            # TODO Make tGK ask tUI to do all of this, because tkinter says all the GUI needs to be in one thread
             if comm.c_type == 'cmd':  # Handle it like a command
                 if comm.content == 'ShowMessageBox':
                     # Syntax is a little gnarly, but this shows a
@@ -283,8 +293,6 @@ class UserInterface(cfg.MyThread):
 
             # elif comm.c_type == 'data':  # Handle it like data
             #     pass
-
-        # TODO: Check that VNC connection is still good, kill program if connection goes down
 
         with cfg.L_D_parsed_image_data:
             # Getting a 'local' copy of the parsed image data helps prevent race conditions and improves modularity

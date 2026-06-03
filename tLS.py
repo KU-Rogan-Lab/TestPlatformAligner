@@ -31,7 +31,7 @@ class Listener(cfg.MyThread):
             # TODO Consider adjusting the ratio of communications handled per cycle to serial reads per cycle
 
             # DEBUG
-            print(self.ser.readline())
+            # print(self.ser.readline())
 
             if cfg.E_tLS_stopping.is_set():
                 self.stop()
