@@ -124,7 +124,7 @@ def orderAnchorPoints(pts):
     return np.array([tl, tr, br, bl], dtype="float32")
 
 
-def mark_up_image(image, laser_coords, emitter_coords, tl_anchor_coords):
+def mark_up_image(image, laser_coords, emitter_coords, tl_anchor_coords, mouse_coords=(-1,-1)):
     """
     Return a version of the image marked up to visualize various data.
     e.g. marking the positions of the laser dot, emitter slit, adding a mm scale reference, etc.
@@ -158,6 +158,12 @@ def mark_up_image(image, laser_coords, emitter_coords, tl_anchor_coords):
         cv.putText(image,
                    f' Sensor Target ({sensor_target_coords[0]}, {sensor_target_coords[1]})',
                    (sensor_target_coords[0], sensor_target_coords[1] + 15), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 50, 200), 1)
+
+    if not mouse_coords == (-1,-1):
+        cv.circle(image, mouse_coords, 2, (255, 200, 50), -1)
+        cv.putText(image,
+                   f' Mouse ({mouse_coords[0]}, {mouse_coords[1]})',
+                   (mouse_coords[0], mouse_coords[1] + 15), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 200, 50), 1)
 
     scaleSquareCoord = int(10 + 10 / cfg.K_pixel2mm_constant)
     cv.rectangle(image, (10, 10), (scaleSquareCoord, scaleSquareCoord), (255, 200, 50), 1)

@@ -22,6 +22,7 @@ class ImageParser(cfg.MyThread):
         self.laser_coords = (-1, -1)
         self.emitter_coords = (-1, -1)
         self.tl_anchor_coords = (-1, -1)
+        self.mouse_coords = (-1, -1)
 
         self.transformation_found = False
         self.laser_dot_found = False
@@ -48,6 +49,11 @@ class ImageParser(cfg.MyThread):
     def __del__(self):
         cv.destroyAllWindows()
 
+    def mouse_callback(self, event, x, y, flags, param):
+        """Handle mouse events."""
+        if event == cv.EVENT_MOUSEMOVE:
+            self.mouse_coords = (x, y)
+
     def stop(self):
         """Wrap up any remaining business before the thread stops."""
         print('Stopping the Image Parser thread...')
@@ -63,6 +69,9 @@ class ImageParser(cfg.MyThread):
         cv.namedWindow('Camera Feed', cv.WINDOW_AUTOSIZE + cv.WINDOW_GUI_NORMAL)
         cv.moveWindow('Camera Feed', 3, 40)
         cv.waitKey(1)
+
+        # Set the mouse callback function so we can track mouse position in the camera feed window
+        cv.setMouseCallback('Camera Feed', self.mouse_callback)
 
         # Ask the user if it is safe to turn the lights and laser on
 
@@ -264,7 +273,7 @@ class ImageParser(cfg.MyThread):
 
             if self.visualize_data:
                 # print(f'laser_coords: {self.laser_coords}')
-                utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords, self.tl_anchor_coords)
+                utl.mark_up_image(self.image, self.laser_coords, self.emitter_coords, self.tl_anchor_coords, self.mouse_coords)
             cv.imshow('Camera Feed', self.image)
 
             # Move the other feeds so that they are aligned with the main feed for easy comparison
